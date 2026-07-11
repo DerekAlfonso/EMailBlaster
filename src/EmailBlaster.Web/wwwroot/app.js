@@ -82,6 +82,7 @@ async function loadConfig() {
   toggleProvider();
   toggleAwsAuth();
   refreshFooter();
+  loadSesIdentities();
 }
 
 async function loadAwsProfiles() {
@@ -166,12 +167,101 @@ $('btnTestConnection').addEventListener('click', async (e) => {
   else setConfigStatus(false, 'Connection failed: ' + data.error);
 });
 
+// ---------------- verified SES identities ----------------
+// When the AWS provider is active, the From email offers verified identities as suggestions
+// (emails directly, domains as suffix completions of whatever local part is typed) and shows a
+// live verified/not-verified hint — or the reason the identities could not be listed.
+let sesIdentities = null;   // { emails: [], domains: [] } when loaded, null otherwise
+let sesFetchSeq = 0;
+
+function setFromEmailHint(text, color) {
+  const el = $('fromEmailHint');
+  if (!text) { el.classList.add('hidden'); return; }
+  el.textContent = text;
+  el.style.color = color;
+  el.classList.remove('hidden');
+}
+
+function validateFromEmail() {
+  if (!sesIdentities || getRadio('provider') !== 'Aws') return;
+  const address = $('fromEmail').value.trim();
+  if (!address || address.indexOf('@') <= 0 || address.endsWith('@')) {
+    setFromEmailHint('Pick a verified identity from the suggestions, or type an address to validate it.', 'var(--muted)');
+    return;
+  }
+  const lower = address.toLowerCase();
+  const domain = lower.slice(lower.lastIndexOf('@') + 1);
+  if (sesIdentities.emails.some((e) => e.toLowerCase() === lower)) {
+    setFromEmailHint('✓ Verified SES email identity.', 'var(--success)');
+  } else if (sesIdentities.domains.some((d) => d.toLowerCase() === domain)) {
+    setFromEmailHint('✓ The domain is a verified SES identity.', 'var(--success)');
+  } else {
+    setFromEmailHint('Not a verified SES identity — SES will reject sends from this address.', 'var(--danger)');
+  }
+}
+
+function rebuildFromEmailSuggestions() {
+  const list = $('fromEmailList');
+  list.innerHTML = '';
+  if (!sesIdentities || getRadio('provider') !== 'Aws') return;
+  const options = [...sesIdentities.emails];
+  const typed = $('fromEmail').value.trim();
+  const local = typed.includes('@') ? typed.slice(0, typed.indexOf('@')) : typed;
+  for (const domain of sesIdentities.domains)
+    options.push((local || 'you') + '@' + domain);
+  for (const value of options) {
+    const opt = document.createElement('option');
+    opt.value = value;
+    list.appendChild(opt);
+  }
+}
+
+async function loadSesIdentities() {
+  if (getRadio('provider') !== 'Aws') { sesIdentities = null; setFromEmailHint(null); rebuildFromEmailSuggestions(); return; }
+  const seq = ++sesFetchSeq;
+  setFromEmailHint('Looking up verified SES identities…', 'var(--muted)');
+  await apiPost('/api/config', collectConfig());
+  const data = await apiGet('/api/ses-identities');
+  if (seq !== sesFetchSeq || getRadio('provider') !== 'Aws') return;
+  if (!data.ok) {
+    sesIdentities = null;
+    rebuildFromEmailSuggestions();
+    setFromEmailHint(data.message || 'Could not list the verified SES identities.', 'var(--danger)');
+    return;
+  }
+  sesIdentities = { emails: data.emails || [], domains: data.domains || [] };
+  rebuildFromEmailSuggestions();
+  if (!sesIdentities.emails.length && !sesIdentities.domains.length) {
+    setFromEmailHint('This AWS account has no verified SES identities in the selected region. Verify an email address or domain in the SES console first.', 'var(--danger)');
+  } else {
+    validateFromEmail();
+  }
+}
+
+$('fromEmail').addEventListener('input', () => { rebuildFromEmailSuggestions(); validateFromEmail(); });
+['awsProfile', 'awsRegion', 'awsAccessKey', 'awsSecret', 'awsSessionToken'].forEach((id) =>
+  $(id).addEventListener('change', () => { if (getRadio('provider') === 'Aws') loadSesIdentities(); }));
+
 let ssoAttempt = 0;
 
 function finishAwsAccessTest(btn, data) {
   btn.dataset.ssoWait = '';
   unbusy(btn, 'Test AWS access');
   setConfigStatus(!!data.ok, data.message);
+  if (data.ok) {
+    // Access is proven: refresh the identity-driven UI and drop a known-good address into the
+    // test-email box (a verified recipient also satisfies SES sandbox accounts).
+    loadSesIdentities().then(() => {
+      if (!sesIdentities) return;
+      const from = $('fromEmail').value.trim();
+      const domain = from.includes('@') ? from.slice(from.lastIndexOf('@') + 1).toLowerCase() : '';
+      const fromVerified =
+        sesIdentities.emails.some((e) => e.toLowerCase() === from.toLowerCase()) ||
+        sesIdentities.domains.some((d) => d.toLowerCase() === domain);
+      const target = fromVerified ? from : sesIdentities.emails[0];
+      if (target) $('testTo').value = target;
+    });
+  }
 }
 
 // Launches the browser sign-in immediately and waits for it. While waiting, the button stays
@@ -218,7 +308,7 @@ $('btnSendTest').addEventListener('click', async (e) => {
   else setConfigStatus(false, 'Test failed: ' + data.error);
 });
 
-$$('input[name=provider]').forEach((r) => r.addEventListener('change', () => { state.provider = getRadio('provider'); toggleProvider(); }));
+$$('input[name=provider]').forEach((r) => r.addEventListener('change', () => { state.provider = getRadio('provider'); toggleProvider(); loadSesIdentities(); }));
 $$('input[name=awsAuth]').forEach((r) => r.addEventListener('change', toggleAwsAuth));
 $('unlimited').addEventListener('change', () => {
   const u = $('unlimited').checked;
