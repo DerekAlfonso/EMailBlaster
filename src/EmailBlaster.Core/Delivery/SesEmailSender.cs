@@ -1,6 +1,3 @@
-using Amazon;
-using Amazon.Runtime;
-using Amazon.Runtime.CredentialManagement;
 using Amazon.SimpleEmailV2;
 using Amazon.SimpleEmailV2.Model;
 using EmailBlaster.Core.Configuration;
@@ -22,7 +19,7 @@ public sealed class SesEmailSender : IEmailSender
     public SesEmailSender(EmailBlasterConfig config)
     {
         _config = config;
-        _client = BuildClient(config.Aws);
+        _client = SesClientFactory.Create(config.Aws);
     }
 
     public async Task<SendResult> SendAsync(EmailMessage message, CancellationToken cancellationToken = default)
@@ -82,33 +79,6 @@ public sealed class SesEmailSender : IEmailSender
         {
             return ex.Message;
         }
-    }
-
-    private static AmazonSimpleEmailServiceV2Client BuildClient(AwsConfig aws)
-    {
-        var region = RegionEndpoint.GetBySystemName(aws.Region);
-
-        if (aws.AuthMode == AwsAuthMode.AccessKey)
-        {
-            AWSCredentials creds = string.IsNullOrWhiteSpace(aws.SessionToken)
-                ? new BasicAWSCredentials(aws.AccessKeyId, aws.SecretAccessKey)
-                : new SessionAWSCredentials(aws.AccessKeyId, aws.SecretAccessKey, aws.SessionToken);
-            return new AmazonSimpleEmailServiceV2Client(creds, region);
-        }
-
-        // Profile mode. A named profile is looked up in the shared credentials store; otherwise fall
-        // back to the default provider chain (environment vars, EC2/ECS/Lambda roles, etc.).
-        if (!string.IsNullOrWhiteSpace(aws.Profile))
-        {
-            var chain = new CredentialProfileStoreChain();
-            if (chain.TryGetAWSCredentials(aws.Profile, out var profileCreds))
-                return new AmazonSimpleEmailServiceV2Client(profileCreds, region);
-
-            throw new InvalidOperationException(
-                $"AWS profile '{aws.Profile}' was not found in the shared credentials store.");
-        }
-
-        return new AmazonSimpleEmailServiceV2Client(region);
     }
 
     private static string FormatFrom(string name, string email)

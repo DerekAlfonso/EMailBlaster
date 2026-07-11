@@ -166,6 +166,25 @@ $('btnTestConnection').addEventListener('click', async (e) => {
   else setConfigStatus(false, 'Connection failed: ' + data.error);
 });
 
+$('btnTestAwsAccess').addEventListener('click', async (e) => {
+  const btn = e.target; busy(btn, 'Testing…');
+  await apiPost('/api/config', collectConfig());
+  let { data } = await apiPost('/api/test-aws-access');
+  if (data.canAttemptSsoLogin &&
+      confirm(data.message + '\n\nLaunch the SSO sign-in now? A browser window will open on the machine running the server.')) {
+    btn.textContent = 'Waiting for SSO sign-in…';
+    const login = await apiPost('/api/aws-sso-login');
+    if (login.data.ok) {
+      btn.textContent = 'Testing…';
+      ({ data } = await apiPost('/api/test-aws-access'));
+    } else {
+      data = login.data;
+    }
+  }
+  unbusy(btn, 'Test AWS access');
+  setConfigStatus(!!data.ok, data.message);
+});
+
 $('btnSendTest').addEventListener('click', async (e) => {
   const to = $('testTo').value.trim();
   if (!to) { setConfigStatus(false, 'Enter an address to send the test to.'); return; }

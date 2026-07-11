@@ -4,6 +4,7 @@ using System.Windows.Controls;
 using System.Windows.Media;
 using EmailBlaster.Core;
 using EmailBlaster.Core.Configuration;
+using EmailBlaster.Core.Delivery;
 
 namespace EmailBlaster.Desktop.Views;
 
@@ -241,6 +242,52 @@ public partial class ConfigurationView : UserControl, IRefreshable
         finally
         {
             SetBusy(TestConnectionButton, false, "Test connection");
+        }
+    }
+
+    private async void TestAwsAccess_Click(object sender, RoutedEventArgs e)
+    {
+        // Commit the on-screen values so the test uses what the user sees. SMTP-side validation
+        // problems are irrelevant here, so errors are not gating.
+        ApplyToConfig();
+
+        SetBusy(TestAwsAccessButton, true, "Testing…");
+        try
+        {
+            var result = await AwsAccessTester.TestSendAccessAsync(_session.Config);
+
+            if (result.CanAttemptSsoLogin && !string.IsNullOrWhiteSpace(_session.Config.Aws.Profile))
+            {
+                ShowStatus(false, result.Message);
+                var answer = MessageBox.Show(Window.GetWindow(this)!,
+                    result.Message + "\n\nLaunch the SSO sign-in now? A browser window will open.",
+                    "AWS SSO sign-in required", MessageBoxButton.YesNo, MessageBoxImage.Question);
+
+                if (answer == MessageBoxResult.Yes)
+                {
+                    SetBusy(TestAwsAccessButton, true, "Waiting for SSO sign-in…");
+                    var login = await AwsAccessTester.RunSsoLoginAsync(_session.Config.Aws.Profile!);
+                    if (login.Success)
+                    {
+                        SetBusy(TestAwsAccessButton, true, "Testing…");
+                        result = await AwsAccessTester.TestSendAccessAsync(_session.Config);
+                    }
+                    else
+                    {
+                        result = login;
+                    }
+                }
+            }
+
+            ShowStatus(result.Success, result.Message);
+        }
+        catch (Exception ex)
+        {
+            ShowStatus(false, $"AWS access test failed: {ex.Message}");
+        }
+        finally
+        {
+            SetBusy(TestAwsAccessButton, false, "Test AWS access");
         }
     }
 
