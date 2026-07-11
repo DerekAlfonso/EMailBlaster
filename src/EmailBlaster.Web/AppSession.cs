@@ -1,5 +1,6 @@
 using EmailBlaster.Core;
 using EmailBlaster.Core.Configuration;
+using EmailBlaster.Core.Delivery;
 using EmailBlaster.Core.Models;
 
 namespace EmailBlaster.Web;
@@ -33,6 +34,43 @@ public sealed class AppSession
             "<p>Write your message here. Use the placeholder chips to personalise it.</p>" +
             "<p>Best regards,<br>Your team</p>"
     };
+
+    private CancellationTokenSource? _ssoLoginCts;
+
+    /// <summary>
+    /// Runs <c>aws sso login</c> for the profile, cancelling any sign-in already in flight so a
+    /// "relaunch" from the browser UI replaces the previous attempt instead of stacking CLI
+    /// processes and browser windows.
+    /// </summary>
+    public async Task<AwsAccessTestResult> RunSsoLoginAsync(string profile)
+    {
+        CancellationTokenSource cts;
+        lock (_lock)
+        {
+            _ssoLoginCts?.Cancel();
+            cts = new CancellationTokenSource();
+            _ssoLoginCts = cts;
+        }
+
+        try
+        {
+            return await AwsAccessTester.RunSsoLoginAsync(profile, cts.Token);
+        }
+        catch (OperationCanceledException)
+        {
+            return AwsAccessTestResult.Fail(AwsAccessProblem.SsoLoginRequired,
+                "This sign-in attempt was replaced by a newer one.");
+        }
+        finally
+        {
+            lock (_lock)
+            {
+                if (ReferenceEquals(_ssoLoginCts, cts))
+                    _ssoLoginCts = null;
+            }
+            cts.Dispose();
+        }
+    }
 
     /// <summary>Persists the current config next to the app (or to the resolved path).</summary>
     public string SaveConfig()
