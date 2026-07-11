@@ -99,6 +99,11 @@ public static class ConfigurationLoader
     public static string Serialize(EmailBlasterConfig config) =>
         JsonSerializer.Serialize(config, JsonOptions);
 
+    /// <summary>Deserializes a configuration from a JSON string (used by the web config import).</summary>
+    public static EmailBlasterConfig Deserialize(string json) =>
+        JsonSerializer.Deserialize<EmailBlasterConfig>(json, JsonOptions)
+        ?? new EmailBlasterConfig();
+
     private static void ApplyEnvironmentOverrides(EmailBlasterConfig config)
     {
         // Top-level settings.

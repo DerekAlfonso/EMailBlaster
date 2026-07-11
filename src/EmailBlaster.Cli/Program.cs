@@ -19,6 +19,7 @@ try
         "preview" => Commands.Preview(args2),
         "validate" => Commands.Validate(args2),
         "config" => Commands.ShowConfig(args2),
+        "save-config" => Commands.SaveConfig(args2),
         "help" or "--help" or "-h" => Help(),
         _ => Unknown(args2.Command)
     };
@@ -52,6 +53,7 @@ static int Help()
           preview          Render merged messages for the first N recipients.
           validate         Validate the resolved configuration.
           config           Print the resolved configuration (secrets redacted).
+          save-config      Write the resolved configuration to a JSON file.
           help             Show this help.
 
         GLOBAL OPTIONS
@@ -85,8 +87,12 @@ static int Help()
           --count <n>              Number of recipients to preview (default 3).
           --out <dir>              Write merged HTML files here instead of stdout.
 
+        SAVE-CONFIG OPTIONS
+          --out <path>             Destination JSON file (required). Global overrides apply.
+
         EXAMPLES
           emailblaster validate
+          emailblaster save-config --out backup.json
           emailblaster test --to me@example.com --subject "Hi {{Name|there}}" --html "<p>Hello</p>"
           emailblaster preview --recipients audience.csv --subject "Hi {{Name}}" --html-file body.html
           emailblaster send --recipients audience.xlsx --subject "Hi {{Name}}" --html-file body.html --yes

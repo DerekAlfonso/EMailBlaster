@@ -31,6 +31,38 @@ app.MapPost("/api/config", (ConfigDto dto, AppSession session) =>
     return Results.Ok(new { ok = errors.Count == 0, errors, savedTo });
 });
 
+// Downloads the current configuration as a JSON file (same format as emailblaster.json).
+app.MapGet("/api/config/export", (AppSession session) =>
+{
+    var json = ConfigurationLoader.Serialize(session.Config);
+    return Results.File(System.Text.Encoding.UTF8.GetBytes(json), "application/json",
+        ConfigurationLoader.DefaultFileName);
+});
+
+// Loads a configuration from an uploaded JSON file into the session (not persisted until saved).
+app.MapPost("/api/config/import", async (HttpRequest request, AppSession session) =>
+{
+    if (!request.HasFormContentType)
+        return Results.BadRequest(new { error = "Expected a multipart file upload." });
+
+    var form = await request.ReadFormAsync();
+    var file = form.Files.GetFile("file");
+    if (file is null || file.Length == 0)
+        return Results.BadRequest(new { error = "No file was uploaded." });
+
+    try
+    {
+        using var reader = new StreamReader(file.OpenReadStream());
+        var json = await reader.ReadToEndAsync();
+        session.Config = ConfigurationLoader.Deserialize(json);
+        return Results.Ok(new { ok = true });
+    }
+    catch (Exception ex)
+    {
+        return Results.BadRequest(new { error = $"Could not read the configuration file: {ex.Message}" });
+    }
+});
+
 // ------------------------------------------------------------------ Recipients
 
 app.MapPost("/api/recipients", async (HttpRequest request, AppSession session) =>

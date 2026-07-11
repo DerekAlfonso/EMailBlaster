@@ -123,6 +123,25 @@ $('btnSaveConfig').addEventListener('click', async () => {
   }
 });
 
+$('btnDownloadConfig').addEventListener('click', async () => {
+  // Capture on-screen edits into the session first so the download reflects what the user sees.
+  await apiPost('/api/config', collectConfig());
+  window.location.href = '/api/config/export';
+});
+
+$('configFileInput').addEventListener('change', async (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+  const form = new FormData();
+  form.append('file', file);
+  const r = await fetch('/api/config/import', { method: 'POST', body: form });
+  const data = await r.json().catch(() => ({}));
+  e.target.value = '';
+  if (!r.ok) { setConfigStatus(false, data.error || 'Could not load the configuration file.'); return; }
+  await loadConfig();
+  setConfigStatus(true, 'Configuration loaded from ' + file.name + '. Click "Save settings" to persist it.');
+});
+
 $('btnTestConnection').addEventListener('click', async (e) => {
   const btn = e.target; busy(btn, 'Testing…');
   await apiPost('/api/config', collectConfig());
