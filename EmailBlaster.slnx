@@ -5,4 +5,7 @@
     <Project Path="src/EmailBlaster.Desktop/EmailBlaster.Desktop.csproj" />
     <Project Path="src/EmailBlaster.Web/EmailBlaster.Web.csproj" />
   </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/EmailBlaster.Tests/EmailBlaster.Tests.csproj" />
+  </Folder>
 </Solution>

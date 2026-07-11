@@ -380,4 +380,90 @@
         <Setter Property="BorderBrush" Value="Transparent" />
     </Style>
 
+    <!-- ============================ Menu ============================
+         The default MenuItem templates paint the dropdown popup with system colours (white), which
+         clashes with the dark theme. Only the roles the app uses are retemplated: File/Edit are
+         TopLevelHeaders and their children are SubmenuItems. Add templates for TopLevelItem /
+         SubmenuHeader here if nested menus are ever introduced. -->
+    <ControlTemplate x:Key="MenuTopLevelHeaderTemplate" TargetType="MenuItem">
+        <Grid>
+            <Border x:Name="bd" CornerRadius="5" Padding="10,4" Background="Transparent">
+                <ContentPresenter ContentSource="Header" RecognizesAccessKey="True"
+                                  VerticalAlignment="Center" />
+            </Border>
+            <Popup x:Name="PART_Popup" Placement="Bottom" AllowsTransparency="True" Focusable="False"
+                   IsOpen="{Binding IsSubmenuOpen, RelativeSource={RelativeSource TemplatedParent}}"
+                   PopupAnimation="Fade">
+                <Border Background="{DynamicResource SurfaceBrush}"
+                        BorderBrush="{DynamicResource BorderBrush}"
+                        BorderThickness="1" CornerRadius="7" Padding="0,4" Margin="0,2,8,8"
+                        MinWidth="230" SnapsToDevicePixels="True">
+                    <Border.Effect>
+                        <DropShadowEffect BlurRadius="10" ShadowDepth="2" Opacity="0.3" />
+                    </Border.Effect>
+                    <ItemsPresenter KeyboardNavigation.DirectionalNavigation="Cycle" />
+                </Border>
+            </Popup>
+        </Grid>
+        <ControlTemplate.Triggers>
+            <Trigger Property="IsHighlighted" Value="True">
+                <Setter TargetName="bd" Property="Background" Value="{DynamicResource HoverBrush}" />
+            </Trigger>
+            <Trigger Property="IsSubmenuOpen" Value="True">
+                <Setter TargetName="bd" Property="Background" Value="{DynamicResource HoverBrush}" />
+            </Trigger>
+        </ControlTemplate.Triggers>
+    </ControlTemplate>
+
+    <ControlTemplate x:Key="MenuSubmenuItemTemplate" TargetType="MenuItem">
+        <Border x:Name="bd" CornerRadius="5" Margin="4,1" Padding="10,6" Background="Transparent">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+                <ContentPresenter Grid.Column="0" ContentSource="Header" RecognizesAccessKey="True"
+                                  VerticalAlignment="Center" />
+                <TextBlock Grid.Column="1" Text="{TemplateBinding InputGestureText}"
+                           Foreground="{DynamicResource MutedTextBrush}" FontSize="11.5"
+                           Margin="24,0,0,0" VerticalAlignment="Center" />
+            </Grid>
+        </Border>
+        <ControlTemplate.Triggers>
+            <Trigger Property="IsHighlighted" Value="True">
+                <Setter TargetName="bd" Property="Background" Value="{DynamicResource HoverBrush}" />
+            </Trigger>
+            <Trigger Property="IsEnabled" Value="False">
+                <Setter Property="Foreground" Value="{DynamicResource MutedTextBrush}" />
+            </Trigger>
+        </ControlTemplate.Triggers>
+    </ControlTemplate>
+
+    <Style TargetType="MenuItem">
+        <Setter Property="Foreground" Value="{DynamicResource TextBrush}" />
+        <Setter Property="FontSize" Value="13" />
+        <Style.Triggers>
+            <Trigger Property="Role" Value="TopLevelHeader">
+                <Setter Property="Template" Value="{StaticResource MenuTopLevelHeaderTemplate}" />
+            </Trigger>
+            <Trigger Property="Role" Value="SubmenuItem">
+                <Setter Property="Template" Value="{StaticResource MenuSubmenuItemTemplate}" />
+            </Trigger>
+        </Style.Triggers>
+    </Style>
+
+    <!-- Menu separators resolve their style via this system key, not an implicit Separator style. -->
+    <Style x:Key="{x:Static MenuItem.SeparatorStyleKey}" TargetType="Separator">
+        <Setter Property="Height" Value="1" />
+        <Setter Property="Margin" Value="10,4" />
+        <Setter Property="Background" Value="{DynamicResource BorderBrush}" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="Separator">
+                    <Border Height="1" Background="{TemplateBinding Background}" SnapsToDevicePixels="True" />
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
 </ResourceDictionary>

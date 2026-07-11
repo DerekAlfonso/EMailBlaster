@@ -1,7 +1,10 @@
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Input;
+using EmailBlaster.Core;
 using EmailBlaster.Core.Configuration;
 using EmailBlaster.Desktop.Views;
+using Microsoft.Win32;
 
 namespace EmailBlaster.Desktop;
 
@@ -32,6 +35,75 @@ public partial class MainWindow : Window
 
         MainContent.Content = _configView;
     }
+
+    // ---------------- menu: File ----------------
+
+    private void LoadConfig_Executed(object sender, ExecutedRoutedEventArgs e)
+    {
+        var dlg = new OpenFileDialog
+        {
+            Title = "Load configuration",
+            Filter = "JSON configuration (*.json)|*.json|All files (*.*)|*.*"
+        };
+        if (dlg.ShowDialog(this) != true)
+            return;
+
+        try
+        {
+            _session.Config = ConfigurationLoader.LoadFromFile(dlg.FileName);
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show(this, $"Could not load the configuration:\n{ex.Message}",
+                "Load configuration", MessageBoxButton.OK, MessageBoxImage.Error);
+            return;
+        }
+
+        // The Configuration screen holds copies of the values in its controls, so refresh it even when
+        // it is not the visible view — otherwise a later save would write the stale on-screen values.
+        _configView.OnShown();
+        if (!ReferenceEquals(MainContent.Content, _configView) && MainContent.Content is IRefreshable refreshable)
+            refreshable.OnShown();
+    }
+
+    private void SaveConfigAs_Executed(object sender, ExecutedRoutedEventArgs e)
+    {
+        // Capture any edits sitting in the Configuration screen before writing the file.
+        var errors = _configView.CommitEdits();
+        if (errors.Count > 0)
+        {
+            var proceed = MessageBox.Show(this,
+                "The configuration has validation problems:\n• " + string.Join("\n• ", errors) +
+                "\n\nSave it anyway?",
+                "Save configuration", MessageBoxButton.YesNo, MessageBoxImage.Warning);
+            if (proceed != MessageBoxResult.Yes)
+                return;
+        }
+
+        var dlg = new SaveFileDialog
+        {
+            Title = "Save configuration as",
+            Filter = "JSON configuration (*.json)|*.json|All files (*.*)|*.*",
+            FileName = ConfigurationLoader.DefaultFileName,
+            DefaultExt = ".json"
+        };
+        if (dlg.ShowDialog(this) != true)
+            return;
+
+        try
+        {
+            ConfigurationLoader.SaveToFile(_session.Config, dlg.FileName);
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show(this, $"Could not save the configuration:\n{ex.Message}",
+                "Save configuration", MessageBoxButton.OK, MessageBoxImage.Error);
+        }
+    }
+
+    private void Exit_Click(object sender, RoutedEventArgs e) => Close();
+
+    // ---------------- theme ----------------
 
     private void ThemeToggle_Click(object sender, RoutedEventArgs e)
     {
