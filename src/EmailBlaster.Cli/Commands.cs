@@ -248,6 +248,20 @@ public static class Commands
         return 2;
     }
 
+    public static int SaveConfig(Arguments args)
+    {
+        var path = args.Get("out")
+                   ?? throw new ArgumentException("An output file is required: pass --out <path>.");
+
+        var config = LoadConfig(args);
+        ConfigurationLoader.SaveToFile(config, path);
+
+        ConsoleEx.Success($"Configuration written to {Path.GetFullPath(path)}");
+        if (!string.IsNullOrEmpty(config.Smtp.Password) || !string.IsNullOrEmpty(config.Aws.SecretAccessKey))
+            Console.WriteLine("    Note: the file contains credentials in plain text. Store it accordingly.");
+        return 0;
+    }
+
     public static int ShowConfig(Arguments args)
     {
         var config = LoadConfig(args);

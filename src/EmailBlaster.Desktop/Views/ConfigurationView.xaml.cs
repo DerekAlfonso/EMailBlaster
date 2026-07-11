@@ -106,6 +106,12 @@ public partial class ConfigurationView : UserControl, IRefreshable
         }
     }
 
+    /// <summary>
+    /// Commits the on-screen values into the shared config without persisting to disk. Used by the
+    /// File menu so "Save Configuration As" includes edits that have not been saved yet.
+    /// </summary>
+    public IReadOnlyList<string> CommitEdits() => ApplyToConfig();
+
     /// <summary>Reads every control back into the shared config. Returns validation errors (empty = ok).</summary>
     private IReadOnlyList<string> ApplyToConfig()
     {

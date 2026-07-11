@@ -7,6 +7,14 @@
         Background="{DynamicResource AppBackgroundBrush}"
         FontFamily="Segoe UI">
 
+    <Window.CommandBindings>
+        <CommandBinding Command="ApplicationCommands.Open" Executed="LoadConfig_Executed" />
+        <CommandBinding Command="ApplicationCommands.SaveAs" Executed="SaveConfigAs_Executed" />
+    </Window.CommandBindings>
+    <Window.InputBindings>
+        <KeyBinding Command="ApplicationCommands.SaveAs" Modifiers="Ctrl+Shift" Key="S" />
+    </Window.InputBindings>
+
     <Window.Resources>
         <!-- Sidebar navigation item -->
         <Style x:Key="NavButton" TargetType="RadioButton">
@@ -43,6 +51,28 @@
             </Setter>
         </Style>
     </Window.Resources>
+
+    <DockPanel>
+        <!-- ===================== Menu bar ===================== -->
+        <Menu DockPanel.Dock="Top" Background="{DynamicResource SurfaceBrush}"
+              Foreground="{DynamicResource TextBrush}" BorderBrush="{DynamicResource BorderBrush}"
+              BorderThickness="0,0,0,1" Padding="4,2">
+            <MenuItem Header="_File">
+                <MenuItem Header="_Load Configuration…" Command="ApplicationCommands.Open"
+                          InputGestureText="Ctrl+O" />
+                <MenuItem Header="_Save Configuration As…" Command="ApplicationCommands.SaveAs"
+                          InputGestureText="Ctrl+Shift+S" />
+                <Separator />
+                <MenuItem Header="E_xit" Click="Exit_Click" InputGestureText="Alt+F4" />
+            </MenuItem>
+            <MenuItem Header="_Edit">
+                <MenuItem Header="Cu_t" Command="ApplicationCommands.Cut" InputGestureText="Ctrl+X" />
+                <MenuItem Header="_Copy" Command="ApplicationCommands.Copy" InputGestureText="Ctrl+C" />
+                <MenuItem Header="_Paste" Command="ApplicationCommands.Paste" InputGestureText="Ctrl+V" />
+                <Separator />
+                <MenuItem Header="Select _All" Command="ApplicationCommands.SelectAll" InputGestureText="Ctrl+A" />
+            </MenuItem>
+        </Menu>
 
     <Grid>
         <Grid.ColumnDefinitions>
@@ -110,4 +140,5 @@
         <!-- ===================== Content ===================== -->
         <ContentControl x:Name="MainContent" Grid.Column="1" Margin="0" />
     </Grid>
+    </DockPanel>
 </Window>

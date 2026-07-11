@@ -87,7 +87,14 @@ public sealed class SmtpEmailSender : IEmailSender
 
             if (_config.Smtp.RequiresAuthentication)
             {
-                await _client.AuthenticateAsync(_config.Smtp.Username, _config.Smtp.Password, cancellationToken)
+                // RequiresAuthentication guarantees a non-blank user name, but the password can still be
+                // absent from the config; fail with a config error rather than a null-argument crash.
+                var username = _config.Smtp.Username!;
+                var password = _config.Smtp.Password
+                    ?? throw new InvalidOperationException(
+                        "SMTP user name is configured but the password is missing. Set Smtp.Password in the configuration.");
+
+                await _client.AuthenticateAsync(username, password, cancellationToken)
                     .ConfigureAwait(false);
             }
 

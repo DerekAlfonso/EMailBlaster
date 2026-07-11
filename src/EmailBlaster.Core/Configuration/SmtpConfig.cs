@@ -1,3 +1,5 @@
+using System.Text.Json.Serialization;
+
 namespace EmailBlaster.Core.Configuration;
 
 /// <summary>
@@ -23,6 +25,7 @@ public sealed class SmtpConfig
     public string? Password { get; set; }
 
     /// <summary>True when a user name is supplied and authentication should be attempted.</summary>
+    [JsonIgnore]
     public bool RequiresAuthentication => !string.IsNullOrWhiteSpace(Username);
 }
 
