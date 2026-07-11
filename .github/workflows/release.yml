@@ -1,6 +1,10 @@
 name: Release
 
 # Pushing a tag like v1.2.3 builds all shippable apps and attaches them to a GitHub Release.
+#
+# Each app ships in two flavors:
+#   *-self-contained-*      bundles the .NET runtime; larger download, no prerequisites.
+#   *-framework-dependent-* much smaller, but requires the .NET 8 runtime to be installed.
 on:
   push:
     tags:
@@ -26,14 +30,18 @@ jobs:
           $version = '${{ github.ref_name }}'.TrimStart('v')
           "VERSION=$version" | Out-File -FilePath $env:GITHUB_ENV -Append
 
-      - name: Publish Desktop (win-x64)
-        run: dotnet publish src/EmailBlaster.Desktop/EmailBlaster.Desktop.csproj -c Release -r win-x64 --self-contained -p:PublishSingleFile=true -p:Version=${{ env.VERSION }} -o publish/EmailBlaster.Desktop-win-x64
-
-      - name: Publish CLI (win-x64)
-        run: dotnet publish src/EmailBlaster.Cli/EmailBlaster.Cli.csproj -c Release -r win-x64 --self-contained -p:PublishSingleFile=true -p:Version=${{ env.VERSION }} -o publish/EmailBlaster.Cli-win-x64
-
-      - name: Publish Web (win-x64)
-        run: dotnet publish src/EmailBlaster.Web/EmailBlaster.Web.csproj -c Release -r win-x64 --self-contained -p:PublishSingleFile=true -p:Version=${{ env.VERSION }} -o publish/EmailBlaster.Web-win-x64
+      - name: Publish apps (win-x64, both flavors)
+        shell: pwsh
+        run: |
+          foreach ($app in 'Desktop', 'Cli', 'Web') {
+            foreach ($flavor in 'self-contained', 'framework-dependent') {
+              $selfContained = if ($flavor -eq 'self-contained') { '--self-contained' } else { '--no-self-contained' }
+              dotnet publish "src/EmailBlaster.$app/EmailBlaster.$app.csproj" `
+                -c Release -r win-x64 $selfContained -p:PublishSingleFile=true -p:Version=$env:VERSION `
+                -o "publish/EmailBlaster.$app-win-x64-$flavor"
+              if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+            }
+          }
 
       - name: Zip artifacts
         shell: pwsh
@@ -62,11 +70,16 @@ jobs:
       - name: Derive version from tag
         run: echo "VERSION=${GITHUB_REF_NAME#v}" >> "$GITHUB_ENV"
 
-      - name: Publish CLI (linux-x64)
-        run: dotnet publish src/EmailBlaster.Cli/EmailBlaster.Cli.csproj -c Release -r linux-x64 --self-contained -p:PublishSingleFile=true -p:Version=$VERSION -o publish/EmailBlaster.Cli-linux-x64
-
-      - name: Publish Web (linux-x64)
-        run: dotnet publish src/EmailBlaster.Web/EmailBlaster.Web.csproj -c Release -r linux-x64 --self-contained -p:PublishSingleFile=true -p:Version=$VERSION -o publish/EmailBlaster.Web-linux-x64
+      - name: Publish apps (linux-x64, both flavors)
+        run: |
+          for app in Cli Web; do
+            for flavor in self-contained framework-dependent; do
+              if [ "$flavor" = "self-contained" ]; then sc="--self-contained"; else sc="--no-self-contained"; fi
+              dotnet publish "src/EmailBlaster.$app/EmailBlaster.$app.csproj" \
+                -c Release -r linux-x64 $sc -p:PublishSingleFile=true -p:Version=$VERSION \
+                -o "publish/EmailBlaster.$app-linux-x64-$flavor"
+            done
+          done
 
       - name: Tar artifacts
         run: |
@@ -97,3 +110,12 @@ jobs:
         with:
           files: dist/*
           generate_release_notes: true
+          body: |
+            ## Choosing a download
+
+            | Flavor | Prerequisites | Size |
+            | --- | --- | --- |
+            | `self-contained` | None. The .NET runtime is bundled. | Larger |
+            | `framework-dependent` | Requires .NET 8 installed: the [.NET 8 Desktop Runtime](https://dotnet.microsoft.com/download/dotnet/8.0) for the Desktop app, the ASP.NET Core 8 Runtime for the Web app, and the base .NET 8 Runtime for the CLI. | Much smaller |
+
+            If you are unsure, pick `self-contained`.
