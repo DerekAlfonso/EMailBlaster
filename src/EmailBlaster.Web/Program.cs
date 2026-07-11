@@ -1,4 +1,5 @@
 using EmailBlaster.Core;
+using EmailBlaster.Core.Configuration;
 using EmailBlaster.Core.Import;
 using EmailBlaster.Core.Models;
 using EmailBlaster.Core.Templating;
@@ -30,6 +31,9 @@ app.MapPost("/api/config", (ConfigDto dto, AppSession session) =>
         savedTo = session.SaveConfig();
     return Results.Ok(new { ok = errors.Count == 0, errors, savedTo });
 });
+
+// AWS profiles available on the server host, for auto-completing the profile name field.
+app.MapGet("/api/aws-profiles", () => Results.Ok(new { profiles = AwsProfileCatalog.ListProfileNames() }));
 
 // Downloads the current configuration as a JSON file (same format as emailblaster.json).
 app.MapGet("/api/config/export", (AppSession session) =>

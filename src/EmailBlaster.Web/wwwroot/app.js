@@ -84,6 +84,21 @@ async function loadConfig() {
   refreshFooter();
 }
 
+async function loadAwsProfiles() {
+  try {
+    const { profiles } = await apiGet('/api/aws-profiles');
+    const list = $('awsProfileList');
+    list.innerHTML = '';
+    for (const name of profiles || []) {
+      const opt = document.createElement('option');
+      opt.value = name;
+      list.appendChild(opt);
+    }
+  } catch {
+    // Auto-completion is best-effort; the field still accepts free text.
+  }
+}
+
 function collectConfig() {
   return {
     sendRatePerSecond: $('unlimited').checked ? 0 : parseFloat($('rate').value || '0'),
@@ -441,6 +456,7 @@ function esc(s) { return String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<
 
 // ---------------- boot ----------------
 (async function init() {
+  loadAwsProfiles();
   await loadConfig();
   await loadTemplate();
   const summary = await apiGet('/api/recipients');

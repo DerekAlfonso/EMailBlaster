@@ -17,10 +17,18 @@ public partial class ConfigurationView : UserControl, IRefreshable
         _session = session;
         InitializeComponent();
         InitSecurityChoices();
+        InitAwsProfileChoices();
         LoadFromConfig();
     }
 
-    public void OnShown() => LoadFromConfig();
+    public void OnShown()
+    {
+        // Re-discover on every visit so profiles added while the app is open show up.
+        InitAwsProfileChoices();
+        LoadFromConfig();
+    }
+
+    private void InitAwsProfileChoices() => AwsProfileBox.ItemsSource = AwsProfileCatalog.ListProfileNames();
 
     private void InitSecurityChoices()
     {

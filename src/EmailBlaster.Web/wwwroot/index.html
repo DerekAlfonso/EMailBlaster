@@ -114,7 +114,8 @@
               <label class="radio"><input type="radio" name="awsAuth" value="AccessKey"> Access key + secret</label>
             </div>
             <div id="awsProfilePanel">
-              <label>Profile name (blank uses the default credential chain)<input id="awsProfile" type="text"></label>
+              <label>Profile name (blank uses the default credential chain)<input id="awsProfile" type="text" list="awsProfileList" autocomplete="off"></label>
+              <datalist id="awsProfileList"></datalist>
             </div>
             <div id="awsKeyPanel" class="hidden">
               <div class="grid2">
