@@ -36,6 +36,12 @@ public enum AwsAccessProblem
     /// <summary>The AWS endpoint could not be reached (network / DNS / proxy).</summary>
     Network,
 
+    /// <summary>
+    /// No usable credentials anywhere: nothing entered, no profile selected, and the default
+    /// credential chain (default profile, environment, instance roles) produced nothing.
+    /// </summary>
+    NoCredentials,
+
     /// <summary>Anything that did not match a known category.</summary>
     Unknown
 }
@@ -131,13 +137,41 @@ public static class AwsAccessTester
         }
     }
 
+    /// <summary>True when neither explicit keys nor a named profile are set, so the SDK's default
+    /// credential chain (default profile, environment variables, instance roles) is in play.</summary>
+    public static bool UsesDefaultChain(AwsConfig aws) =>
+        aws.AuthMode == AwsAuthMode.Profile && string.IsNullOrWhiteSpace(aws.Profile);
+
     /// <summary>
-    /// Maps an exception from the SendEmail probe to a user-friendly result. Public so the mapping
-    /// rules are unit-testable without calling AWS.
+    /// Maps an exception from an AWS probe to a user-friendly result. <paramref name="operation"/>
+    /// names the IAM action being attempted (e.g. <c>ses:SendEmail</c>) so permission messages are
+    /// specific. <paramref name="defaultProfileExists"/> lets tests pin the default-profile lookup;
+    /// when null it is read from the shared credentials store. Public so the mapping rules are
+    /// unit-testable without calling AWS.
     /// </summary>
-    public static AwsAccessTestResult Classify(Exception ex, AwsConfig aws, string fromEmail, bool isSsoProfile)
+    public static AwsAccessTestResult Classify(Exception ex, AwsConfig aws, string fromEmail, bool isSsoProfile,
+        string operation = "ses:SendEmail", bool? defaultProfileExists = null)
     {
         var profileHint = string.IsNullOrWhiteSpace(aws.Profile) ? "the profile" : $"profile '{aws.Profile}'";
+
+        // Default-chain cases: distinguish "nothing to authenticate with at all" from "a default
+        // profile exists but is broken". (Permission problems are handled further down: they mean
+        // the chain produced working credentials.)
+        if (UsesDefaultChain(aws) && (IsCredentialResolutionFailure(ex) || IsCredentialRejection(ex)))
+        {
+            var hasDefaultProfile = defaultProfileExists ?? DefaultChainProfileExists();
+
+            if (!hasDefaultProfile)
+            {
+                return AwsAccessTestResult.Fail(AwsAccessProblem.NoCredentials,
+                    "No AWS credentials or profile supplied and no default profile exists. Enter an access " +
+                    "key pair, choose a named profile, or configure a default profile in ~/.aws/credentials.");
+            }
+
+            return AwsAccessTestResult.Fail(AwsAccessProblem.InvalidCredentials,
+                "No credentials or profile were supplied, so the default profile was used — but it did not " +
+                "produce working credentials. Its stored credentials appear to be invalid, revoked, or expired.");
+        }
 
         // The factory's SSO callback aborts with this marker when an interactive sign-in would be
         // needed; the SDK may surface it directly or wrapped, so walk the inner-exception chain.
@@ -170,7 +204,7 @@ public static class AwsAccessTester
                     "Credentials and permissions are working, but SES sending is currently paused for this account.");
 
             case AmazonServiceException service:
-                return ClassifyServiceException(service, aws, isSsoProfile, profileHint);
+                return ClassifyServiceException(service, aws, isSsoProfile, profileHint, operation);
 
             // Client-side failures: credential resolution happens here, which is where SSO tokens fail.
             case AmazonClientException client when isSsoProfile:
@@ -194,12 +228,11 @@ public static class AwsAccessTester
     }
 
     private static AwsAccessTestResult ClassifyServiceException(
-        AmazonServiceException ex, AwsConfig aws, bool isSsoProfile, string profileHint)
+        AmazonServiceException ex, AwsConfig aws, bool isSsoProfile, string profileHint, string operation)
     {
         var code = ex.ErrorCode ?? string.Empty;
 
-        if (code is "UnrecognizedClientException" or "InvalidClientTokenId" or "InvalidAccessKeyId"
-            or "SignatureDoesNotMatch" or "InvalidSignatureException")
+        if (CredentialErrorCodes.Contains(code, StringComparer.OrdinalIgnoreCase))
         {
             return AwsAccessTestResult.Fail(AwsAccessProblem.InvalidCredentials,
                 aws.AuthMode == AwsAuthMode.AccessKey
@@ -220,10 +253,13 @@ public static class AwsAccessTester
 
         if (ex.StatusCode == HttpStatusCode.Forbidden || code.Contains("AccessDenied", StringComparison.OrdinalIgnoreCase))
         {
+            // The requirement's "default profile lacks the permission" case gets its own wording.
             return AwsAccessTestResult.Fail(AwsAccessProblem.SendAccessDenied,
-                $"The credentials are valid, but they are not authorized to call ses:SendEmail in region " +
-                $"{aws.Region}. Ask your AWS administrator to grant SES send permission " +
-                "(e.g. the ses:SendEmail action) to this identity.");
+                UsesDefaultChain(aws)
+                    ? $"The default profile does not have the {operation} permission in region {aws.Region}. " +
+                      "Ask your AWS administrator to grant it, or switch to credentials that have it."
+                    : $"The credentials are valid, but they are not authorized to call {operation} in region " +
+                      $"{aws.Region}. Ask your AWS administrator to grant the {operation} action to this identity.");
         }
 
         return AwsAccessTestResult.Fail(AwsAccessProblem.Unknown,
@@ -308,6 +344,59 @@ public static class AwsAccessTester
         return !string.IsNullOrEmpty(options.SsoStartUrl)
                || !string.IsNullOrEmpty(options.SsoSession)
                || !string.IsNullOrEmpty(options.SsoAccountId);
+    }
+
+    /// <summary>
+    /// Whether the profile the default chain would use actually exists. Honors the same environment
+    /// variables the chain honors (AWS_PROFILE, AWS_SHARED_CREDENTIALS_FILE) — the parameterless
+    /// CredentialProfileStoreChain constructor does not, which would make this check disagree with
+    /// what credential resolution actually saw.
+    /// </summary>
+    private static bool DefaultChainProfileExists()
+    {
+        var profileName = Environment.GetEnvironmentVariable("AWS_PROFILE");
+        if (string.IsNullOrWhiteSpace(profileName))
+            profileName = "default";
+
+        var location = Environment.GetEnvironmentVariable("AWS_SHARED_CREDENTIALS_FILE");
+        var chain = string.IsNullOrWhiteSpace(location)
+            ? new CredentialProfileStoreChain()
+            : new CredentialProfileStoreChain(location);
+
+        return chain.TryGetProfile(profileName, out _);
+    }
+
+    private static readonly string[] CredentialErrorCodes =
+    {
+        "UnrecognizedClientException", "InvalidClientTokenId", "InvalidAccessKeyId",
+        "SignatureDoesNotMatch", "InvalidSignatureException", "MissingAuthenticationToken",
+        "IncompleteSignature"
+    };
+
+    /// <summary>AWS received the request but rejected the credentials that signed it.</summary>
+    private static bool IsCredentialRejection(Exception ex) =>
+        ex is AmazonServiceException service &&
+        CredentialErrorCodes.Contains(service.ErrorCode ?? string.Empty, StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>
+    /// Heuristics for "the SDK could not produce credentials at all" (as opposed to AWS rejecting
+    /// them). These surface with varying types and texts depending on which chain link failed last.
+    /// </summary>
+    private static bool IsCredentialResolutionFailure(Exception ex)
+    {
+        for (Exception? walk = ex; walk is not null; walk = walk.InnerException)
+        {
+            if (Mentions(walk.Message, "unable to get iam security credentials") ||
+                Mentions(walk.Message, "unable to find credentials") ||
+                Mentions(walk.Message, "failed to retrieve credentials") ||
+                Mentions(walk.Message, "instance metadata") ||
+                Mentions(walk.Message, "credential profile") ||
+                Mentions(walk.Message, "no credentials specified"))
+            {
+                return true;
+            }
+        }
+        return false;
     }
 
     private static bool Mentions(string? text, string fragment) =>

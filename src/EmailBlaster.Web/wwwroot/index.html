@@ -60,8 +60,10 @@
             <h2>Sender identity</h2>
             <div class="grid2">
               <label>From name<input id="fromName" type="text"></label>
-              <label>From email<input id="fromEmail" type="email"></label>
+              <label>From email<input id="fromEmail" type="email" list="fromEmailList" autocomplete="off"></label>
             </div>
+            <datalist id="fromEmailList"></datalist>
+            <p id="fromEmailHint" class="sub hidden"></p>
             <label>Reply-To email (optional)<input id="replyTo" type="email"></label>
           </div>
 

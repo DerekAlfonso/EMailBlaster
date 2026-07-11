@@ -161,6 +161,21 @@ app.MapPost("/api/test-aws-access", async (AppSession session) =>
     });
 });
 
+// Lists the verified SES identities visible to the configured AWS credentials, for From-address
+// auto-completion and validation.
+app.MapGet("/api/ses-identities", async (AppSession session) =>
+{
+    var result = await SesIdentityCatalog.ListVerifiedIdentitiesAsync(session.Config.Aws);
+    return Results.Ok(new
+    {
+        ok = result.Success,
+        emails = result.EmailIdentities,
+        domains = result.DomainIdentities,
+        message = result.Error,
+        problem = result.Problem.ToString()
+    });
+});
+
 // Runs 'aws sso login' on the machine hosting this server; the sign-in browser opens there.
 // Appropriate for this single-user local tool, where server and user share a machine.
 // Calling it again while a sign-in is in flight relaunches: the previous attempt is cancelled.

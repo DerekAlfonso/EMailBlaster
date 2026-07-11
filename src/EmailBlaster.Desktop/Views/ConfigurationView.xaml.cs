@@ -20,6 +20,7 @@ public partial class ConfigurationView : UserControl, IRefreshable
         InitSecurityChoices();
         InitAwsProfileChoices();
         LoadFromConfig();
+        RefreshVerifiedIdentities();
     }
 
     public void OnShown()
@@ -27,6 +28,131 @@ public partial class ConfigurationView : UserControl, IRefreshable
         // Re-discover on every visit so profiles added while the app is open show up.
         InitAwsProfileChoices();
         LoadFromConfig();
+        RefreshVerifiedIdentities();
+    }
+
+    // ---------------- verified SES identities ----------------
+
+    private SesIdentityResult? _identities;
+    private int _identityFetchSeq;
+
+    /// <summary>
+    /// Fetches the verified SES identities for the current AWS settings and updates the From email
+    /// hint and picker. Async void by design: fire-and-forget from UI triggers, guarded by a
+    /// sequence counter so only the newest fetch wins.
+    /// </summary>
+    private async void RefreshVerifiedIdentities()
+    {
+        if (ProviderAws.IsChecked != true)
+        {
+            _identities = null;
+            VerifiedIdentityPanel.Visibility = Visibility.Collapsed;
+            FromEmailHint.Visibility = Visibility.Collapsed;
+            return;
+        }
+
+        if (!_loading)
+            ApplyToConfig();
+
+        var seq = ++_identityFetchSeq;
+        SetFromEmailHint("Looking up verified SES identities…", "MutedTextBrush");
+
+        SesIdentityResult result;
+        try
+        {
+            result = await SesIdentityCatalog.ListVerifiedIdentitiesAsync(_session.Config.Aws);
+        }
+        catch (Exception ex)
+        {
+            result = new SesIdentityResult { Success = false, Error = ex.Message };
+        }
+
+        if (seq != _identityFetchSeq || ProviderAws.IsChecked != true)
+            return;
+
+        _identities = result;
+
+        if (!result.Success)
+        {
+            VerifiedIdentityPanel.Visibility = Visibility.Collapsed;
+            SetFromEmailHint(result.Error ?? "Could not list the verified SES identities.", "DangerBrush");
+            return;
+        }
+
+        var choices = result.EmailIdentities
+            .Concat(result.DomainIdentities.Select(d => "@" + d))
+            .ToList();
+        VerifiedIdentityBox.ItemsSource = choices;
+        VerifiedIdentityPanel.Visibility = choices.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
+
+        if (choices.Count == 0)
+            SetFromEmailHint("This AWS account has no verified SES identities in the selected region. " +
+                             "Verify an email address or domain in the SES console first.", "DangerBrush");
+        else
+            ValidateFromEmail();
+    }
+
+    private void ValidateFromEmail()
+    {
+        if (_identities is not { Success: true } identities || ProviderAws.IsChecked != true)
+            return;
+
+        var verdict = SesIdentityCatalog.ValidateFromAddress(
+            FromEmailBox.Text, identities.EmailIdentities, identities.DomainIdentities);
+
+        switch (verdict)
+        {
+            case FromAddressVerdict.VerifiedEmail:
+                SetFromEmailHint("✓ Verified SES email identity.", "SuccessBrush");
+                break;
+            case FromAddressVerdict.VerifiedDomain:
+                SetFromEmailHint("✓ The domain is a verified SES identity.", "SuccessBrush");
+                break;
+            case FromAddressVerdict.NotVerified:
+                SetFromEmailHint("Not a verified SES identity — SES will reject sends from this address.",
+                    "DangerBrush");
+                break;
+            default:
+                SetFromEmailHint("Pick a verified identity below, or type an address to validate it.",
+                    "MutedTextBrush");
+                break;
+        }
+    }
+
+    private void SetFromEmailHint(string text, string brushKey)
+    {
+        FromEmailHint.Text = text;
+        FromEmailHint.Foreground = (Brush)FindResource(brushKey);
+        FromEmailHint.Visibility = Visibility.Visible;
+    }
+
+    private void FromEmail_Changed(object sender, TextChangedEventArgs e)
+    {
+        if (!_loading)
+            ValidateFromEmail();
+    }
+
+    private void VerifiedIdentity_Selected(object sender, SelectionChangedEventArgs e)
+    {
+        if (_loading || VerifiedIdentityBox.SelectedItem is not string choice)
+            return;
+
+        if (choice.StartsWith('@'))
+        {
+            // A domain: keep whatever local part is already typed and swap the suffix in.
+            var at = FromEmailBox.Text.IndexOf('@');
+            var localPart = (at >= 0 ? FromEmailBox.Text[..at] : FromEmailBox.Text).Trim();
+            FromEmailBox.Text = localPart + choice;
+            FromEmailBox.Focus();
+            FromEmailBox.CaretIndex = localPart.Length;
+        }
+        else
+        {
+            FromEmailBox.Text = choice;
+        }
+
+        // Clear so the same entry can be picked again later.
+        VerifiedIdentityBox.SelectedItem = null;
     }
 
     private void InitAwsProfileChoices() => AwsProfileBox.ItemsSource = AwsProfileCatalog.ListProfileNames();
@@ -160,7 +286,12 @@ public partial class ConfigurationView : UserControl, IRefreshable
 
     // ---------------- UI toggles ----------------
 
-    private void Provider_Changed(object sender, RoutedEventArgs e) => UpdateProviderVisibility();
+    private void Provider_Changed(object sender, RoutedEventArgs e)
+    {
+        UpdateProviderVisibility();
+        if (!_loading && FromEmailHint is not null)
+            RefreshVerifiedIdentities();
+    }
 
     private void UpdateProviderVisibility()
     {
@@ -310,6 +441,14 @@ public partial class ConfigurationView : UserControl, IRefreshable
             }
 
             ShowStatus(result.Success, result.Message);
+
+            if (result.Success)
+            {
+                // Access is proven, so refresh the identity-driven UI and drop a known-good address
+                // into the test-email box: a verified recipient also satisfies SES sandbox accounts.
+                RefreshVerifiedIdentities();
+                await FillTestRecipientFromIdentitiesAsync();
+            }
         }
         catch (Exception ex)
         {
@@ -320,6 +459,28 @@ public partial class ConfigurationView : UserControl, IRefreshable
             _ssoRelaunch = null;
             SetBusy(TestAwsAccessButton, false, "Test AWS access");
         }
+    }
+
+    /// <summary>
+    /// Puts a verified identity into the test-email box: the From address when it is itself
+    /// verified (self-test), otherwise the first verified email identity.
+    /// </summary>
+    private async Task FillTestRecipientFromIdentitiesAsync()
+    {
+        var identities = await SesIdentityCatalog.ListVerifiedIdentitiesAsync(_session.Config.Aws);
+        if (!identities.Success)
+            return;
+
+        var from = FromEmailBox.Text.Trim();
+        var verdict = SesIdentityCatalog.ValidateFromAddress(
+            from, identities.EmailIdentities, identities.DomainIdentities);
+
+        var target = verdict is FromAddressVerdict.VerifiedEmail or FromAddressVerdict.VerifiedDomain
+            ? from
+            : identities.EmailIdentities.FirstOrDefault();
+
+        if (!string.IsNullOrWhiteSpace(target))
+            TestToBox.Text = target;
     }
 
     private async void SendTest_Click(object sender, RoutedEventArgs e)

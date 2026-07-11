@@ -41,9 +41,19 @@
                             </StackPanel>
                             <StackPanel Grid.Column="2">
                                 <TextBlock Text="From email" Style="{StaticResource FieldLabel}" />
-                                <TextBox x:Name="FromEmailBox" />
+                                <TextBox x:Name="FromEmailBox" TextChanged="FromEmail_Changed" />
+                                <!-- SES identity feedback: verified / not verified / why identities
+                                     could not be listed. Only used when the AWS provider is active. -->
+                                <TextBlock x:Name="FromEmailHint" Style="{StaticResource Subtle}"
+                                           Margin="0,5,0,0" Visibility="Collapsed" />
                             </StackPanel>
                         </Grid>
+                        <StackPanel x:Name="VerifiedIdentityPanel" Margin="0,14,0,0" Visibility="Collapsed">
+                            <TextBlock Text="Verified SES identities (pick an address, or a domain to use as the suffix)"
+                                       Style="{StaticResource FieldLabel}" />
+                            <ComboBox x:Name="VerifiedIdentityBox" Width="300" HorizontalAlignment="Left"
+                                      SelectionChanged="VerifiedIdentity_Selected" />
+                        </StackPanel>
                         <StackPanel Margin="0,14,0,0">
                             <TextBlock Text="Reply-To email (optional)" Style="{StaticResource FieldLabel}" />
                             <TextBox x:Name="ReplyToBox" />
