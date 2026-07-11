@@ -245,8 +245,20 @@ public partial class ConfigurationView : UserControl, IRefreshable
         }
     }
 
+    /// <summary>Non-null while an SSO browser sign-in is in flight; cancelling it relaunches.</summary>
+    private CancellationTokenSource? _ssoRelaunch;
+
     private async void TestAwsAccess_Click(object sender, RoutedEventArgs e)
     {
+        // While a sign-in is in flight the button reads "Relaunch SSO sign-in": cancelling the
+        // wait kills the current CLI attempt and the loop below starts a fresh one (useful when
+        // the sign-in opened in the wrong browser).
+        if (_ssoRelaunch is not null)
+        {
+            _ssoRelaunch.Cancel();
+            return;
+        }
+
         // Commit the on-screen values so the test uses what the user sees. SMTP-side validation
         // problems are irrelevant here, so errors are not gating.
         ApplyToConfig();
@@ -258,23 +270,41 @@ public partial class ConfigurationView : UserControl, IRefreshable
 
             if (result.CanAttemptSsoLogin && !string.IsNullOrWhiteSpace(_session.Config.Aws.Profile))
             {
-                ShowStatus(false, result.Message);
-                var answer = MessageBox.Show(Window.GetWindow(this)!,
-                    result.Message + "\n\nLaunch the SSO sign-in now? A browser window will open.",
-                    "AWS SSO sign-in required", MessageBoxButton.YesNo, MessageBoxImage.Question);
-
-                if (answer == MessageBoxResult.Yes)
+                var profile = _session.Config.Aws.Profile!;
+                var relaunch = true;
+                while (relaunch)
                 {
-                    SetBusy(TestAwsAccessButton, true, "Waiting for SSO sign-in…");
-                    var login = await AwsAccessTester.RunSsoLoginAsync(_session.Config.Aws.Profile!);
-                    if (login.Success)
+                    relaunch = false;
+
+                    // Launch the browser sign-in immediately; the button stays enabled so it can
+                    // relaunch the sign-in while we wait.
+                    TestAwsAccessButton.Content = "Relaunch SSO sign-in";
+                    TestAwsAccessButton.IsEnabled = true;
+                    ShowStatus(false,
+                        $"A browser window has been opened for the AWS SSO sign-in (profile '{profile}'). " +
+                        "Complete the sign-in there — or click 'Relaunch SSO sign-in' if it opened in the " +
+                        "wrong browser.");
+
+                    _ssoRelaunch = new CancellationTokenSource();
+                    try
+                    {
+                        result = await AwsAccessTester.RunSsoLoginAsync(profile, _ssoRelaunch.Token);
+                    }
+                    catch (OperationCanceledException)
+                    {
+                        relaunch = true;
+                        continue;
+                    }
+                    finally
+                    {
+                        _ssoRelaunch.Dispose();
+                        _ssoRelaunch = null;
+                    }
+
+                    if (result.Success)
                     {
                         SetBusy(TestAwsAccessButton, true, "Testing…");
                         result = await AwsAccessTester.TestSendAccessAsync(_session.Config);
-                    }
-                    else
-                    {
-                        result = login;
                     }
                 }
             }
@@ -287,6 +317,7 @@ public partial class ConfigurationView : UserControl, IRefreshable
         }
         finally
         {
+            _ssoRelaunch = null;
             SetBusy(TestAwsAccessButton, false, "Test AWS access");
         }
     }

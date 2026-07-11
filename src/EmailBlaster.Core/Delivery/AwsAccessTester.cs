@@ -143,8 +143,9 @@ public static class AwsAccessTester
         // needed; the SDK may surface it directly or wrapped, so walk the inner-exception chain.
         for (Exception? walk = ex; walk is not null; walk = walk.InnerException)
         {
+            // The marker's own message adds nothing beyond the friendly text, so no detail suffix.
             if (walk is SsoSignInRequiredException && !string.IsNullOrWhiteSpace(aws.Profile))
-                return SsoLoginNeeded(aws.Profile!, walk.Message);
+                return SsoLoginNeeded(aws.Profile!);
         }
 
         switch (ex)
@@ -229,10 +230,11 @@ public static class AwsAccessTester
             $"AWS returned an unexpected error ({(string.IsNullOrEmpty(code) ? ex.StatusCode.ToString() : code)}): {ex.Message}");
     }
 
-    private static AwsAccessTestResult SsoLoginNeeded(string profile, string detail) =>
+    private static AwsAccessTestResult SsoLoginNeeded(string profile, string? detail = null) =>
         AwsAccessTestResult.Fail(AwsAccessProblem.SsoLoginRequired,
             $"Profile '{profile}' uses AWS IAM Identity Center (SSO) and its sign-in session is missing or " +
-            $"expired. Run:  aws sso login --profile {profile}  — or let the app run it for you. ({Shorten(detail)})");
+            $"expired. Sign in with:  aws sso login --profile {profile}" +
+            (string.IsNullOrWhiteSpace(detail) ? "" : $"  ({Shorten(detail)})"));
 
     /// <summary>
     /// Runs <c>aws sso login --profile &lt;name&gt;</c> via the AWS CLI, which opens the system browser

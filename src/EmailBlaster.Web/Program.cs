@@ -163,13 +163,14 @@ app.MapPost("/api/test-aws-access", async (AppSession session) =>
 
 // Runs 'aws sso login' on the machine hosting this server; the sign-in browser opens there.
 // Appropriate for this single-user local tool, where server and user share a machine.
+// Calling it again while a sign-in is in flight relaunches: the previous attempt is cancelled.
 app.MapPost("/api/aws-sso-login", async (AppSession session) =>
 {
     var profile = session.Config.Aws.Profile;
     if (string.IsNullOrWhiteSpace(profile))
         return Results.BadRequest(new { error = "No AWS profile is configured." });
 
-    var result = await AwsAccessTester.RunSsoLoginAsync(profile);
+    var result = await session.RunSsoLoginAsync(profile);
     return Results.Ok(new { ok = result.Success, message = result.Message });
 });
 

@@ -166,23 +166,44 @@ $('btnTestConnection').addEventListener('click', async (e) => {
   else setConfigStatus(false, 'Connection failed: ' + data.error);
 });
 
-$('btnTestAwsAccess').addEventListener('click', async (e) => {
-  const btn = e.target; busy(btn, 'Testing…');
-  await apiPost('/api/config', collectConfig());
-  let { data } = await apiPost('/api/test-aws-access');
-  if (data.canAttemptSsoLogin &&
-      confirm(data.message + '\n\nLaunch the SSO sign-in now? A browser window will open on the machine running the server.')) {
-    btn.textContent = 'Waiting for SSO sign-in…';
-    const login = await apiPost('/api/aws-sso-login');
-    if (login.data.ok) {
-      btn.textContent = 'Testing…';
-      ({ data } = await apiPost('/api/test-aws-access'));
-    } else {
-      data = login.data;
-    }
-  }
+let ssoAttempt = 0;
+
+function finishAwsAccessTest(btn, data) {
+  btn.dataset.ssoWait = '';
   unbusy(btn, 'Test AWS access');
   setConfigStatus(!!data.ok, data.message);
+}
+
+// Launches the browser sign-in immediately and waits for it. While waiting, the button stays
+// enabled as "Relaunch SSO sign-in" (the server cancels the previous attempt), for when the
+// sign-in opened in the wrong browser. A superseded wait simply abandons its response.
+async function ssoSignInThenRetest(btn) {
+  const attempt = ++ssoAttempt;
+  btn.dataset.ssoWait = '1';
+  btn.disabled = false;
+  btn.textContent = 'Relaunch SSO sign-in';
+  setConfigStatus(false,
+    'A browser window has been opened on the machine running the server for the AWS SSO sign-in. ' +
+    'Complete the sign-in there — or click "Relaunch SSO sign-in" if it opened in the wrong browser.');
+
+  const login = (await apiPost('/api/aws-sso-login')).data;
+  if (attempt !== ssoAttempt) return;          // a relaunch superseded this wait
+  if (!login.ok) { finishAwsAccessTest(btn, login); return; }
+
+  btn.dataset.ssoWait = '';
+  busy(btn, 'Testing…');
+  const { data } = await apiPost('/api/test-aws-access');
+  finishAwsAccessTest(btn, data);
+}
+
+$('btnTestAwsAccess').addEventListener('click', async (e) => {
+  const btn = e.target;
+  if (btn.dataset.ssoWait === '1') { ssoSignInThenRetest(btn); return; }   // relaunch
+  busy(btn, 'Testing…');
+  await apiPost('/api/config', collectConfig());
+  const { data } = await apiPost('/api/test-aws-access');
+  if (data.canAttemptSsoLogin) { ssoSignInThenRetest(btn); return; }
+  finishAwsAccessTest(btn, data);
 });
 
 $('btnSendTest').addEventListener('click', async (e) => {
