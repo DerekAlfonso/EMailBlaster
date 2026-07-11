@@ -15,7 +15,30 @@ env:
   DOTNET_CLI_TELEMETRY_OPTOUT: true
 
 jobs:
+  # Unit tests gate the builds: a release tag on a red test suite never ships binaries.
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+
+      - name: Run unit tests
+        run: |
+          shopt -s nullglob globstar
+          projects=(tests/**/*.csproj)
+          if [ ${#projects[@]} -eq 0 ]; then
+            echo "::warning::No test projects found under tests/ — nothing to run."
+            exit 0
+          fi
+          for p in "${projects[@]}"; do
+            dotnet test "$p" -c Release
+          done
+
   build-windows:
+    needs: test
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
@@ -59,6 +82,7 @@ jobs:
 
   # Linux builds run on a Linux runner so the executable bit survives into the tar.gz.
   build-linux:
+    needs: test
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
