@@ -1,0 +1,99 @@
+name: Release
+
+# Pushing a tag like v1.2.3 builds all shippable apps and attaches them to a GitHub Release.
+on:
+  push:
+    tags:
+      - "v*"
+
+env:
+  DOTNET_NOLOGO: true
+  DOTNET_CLI_TELEMETRY_OPTOUT: true
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+
+      - name: Derive version from tag
+        shell: pwsh
+        run: |
+          $version = '${{ github.ref_name }}'.TrimStart('v')
+          "VERSION=$version" | Out-File -FilePath $env:GITHUB_ENV -Append
+
+      - name: Publish Desktop (win-x64)
+        run: dotnet publish src/EmailBlaster.Desktop/EmailBlaster.Desktop.csproj -c Release -r win-x64 --self-contained -p:PublishSingleFile=true -p:Version=${{ env.VERSION }} -o publish/EmailBlaster.Desktop-win-x64
+
+      - name: Publish CLI (win-x64)
+        run: dotnet publish src/EmailBlaster.Cli/EmailBlaster.Cli.csproj -c Release -r win-x64 --self-contained -p:PublishSingleFile=true -p:Version=${{ env.VERSION }} -o publish/EmailBlaster.Cli-win-x64
+
+      - name: Publish Web (win-x64)
+        run: dotnet publish src/EmailBlaster.Web/EmailBlaster.Web.csproj -c Release -r win-x64 --self-contained -p:PublishSingleFile=true -p:Version=${{ env.VERSION }} -o publish/EmailBlaster.Web-win-x64
+
+      - name: Zip artifacts
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory dist | Out-Null
+          Get-ChildItem publish -Directory | ForEach-Object {
+            Compress-Archive -Path "$($_.FullName)\*" -DestinationPath "dist\$($_.Name)-v$env:VERSION.zip"
+          }
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: windows
+          path: dist/*.zip
+          if-no-files-found: error
+
+  # Linux builds run on a Linux runner so the executable bit survives into the tar.gz.
+  build-linux:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+
+      - name: Derive version from tag
+        run: echo "VERSION=${GITHUB_REF_NAME#v}" >> "$GITHUB_ENV"
+
+      - name: Publish CLI (linux-x64)
+        run: dotnet publish src/EmailBlaster.Cli/EmailBlaster.Cli.csproj -c Release -r linux-x64 --self-contained -p:PublishSingleFile=true -p:Version=$VERSION -o publish/EmailBlaster.Cli-linux-x64
+
+      - name: Publish Web (linux-x64)
+        run: dotnet publish src/EmailBlaster.Web/EmailBlaster.Web.csproj -c Release -r linux-x64 --self-contained -p:PublishSingleFile=true -p:Version=$VERSION -o publish/EmailBlaster.Web-linux-x64
+
+      - name: Tar artifacts
+        run: |
+          mkdir dist
+          for d in publish/*/; do
+            name=$(basename "$d")
+            tar -C "$d" -czf "dist/$name-v$VERSION.tar.gz" .
+          done
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: linux
+          path: dist/*.tar.gz
+          if-no-files-found: error
+
+  release:
+    needs: [build-windows, build-linux]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: dist/*
+          generate_release_notes: true

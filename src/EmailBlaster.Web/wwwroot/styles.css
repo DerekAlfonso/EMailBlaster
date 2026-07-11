@@ -1,0 +1,242 @@
+/* ---------------- Theme tokens ----------------
+   Light and dark palettes share the same variable names so every rule below is theme-agnostic.
+   The app defaults to dark (see the inline bootstrap script in index.html). The permanently-dark
+   sidebar is part of the visual identity and stays dark in both themes.
+   The email canvas (compose editor + preview iframe) is intentionally kept light because it is a
+   true WYSIWYG of the email, which recipients almost always read on a light background. */
+:root,
+:root[data-theme="light"] {
+  --accent: #2563eb;
+  --accent-dark: #1d4ed8;
+  --accent-disabled: #93c5fd;
+  --sidebar: #0f172a;
+  --sidebar-hover: #1e293b;
+  --bg: #f1f5f9;
+  --surface: #ffffff;
+  --border: #e2e8f0;
+  --text: #0f172a;
+  --muted: #64748b;
+  --success: #16a34a;
+  --danger: #dc2626;
+
+  --input-bg: #ffffff;
+  --hover: #f8fafc;
+  --hover-strong: #e2e8f0;
+  --table-header: #f1f5f9;
+  --stripe: #f8fafc;
+  --chip-bg: #eef2ff;
+  --chip-hover: #e0e7ff;
+  --chip-text: #1d4ed8;
+  --track: #eef2f7;
+  --toolbar-bg: #f8fafc;
+  --status-ok-bg: #f0fdf4;
+  --status-ok-text: #16a34a;
+  --status-err-bg: #fef2f2;
+  --status-err-text: #dc2626;
+}
+
+:root[data-theme="dark"] {
+  --accent: #3b82f6;
+  --accent-dark: #2563eb;
+  --accent-disabled: #1e3a5f;
+  --sidebar: #020617;
+  --sidebar-hover: #1e293b;
+  --bg: #0b1220;
+  --surface: #1e293b;
+  --border: #334155;
+  --text: #e2e8f0;
+  --muted: #94a3b8;
+  --success: #4ade80;
+  --danger: #f87171;
+
+  --input-bg: #0f172a;
+  --hover: #273449;
+  --hover-strong: #334155;
+  --table-header: #0f172a;
+  --stripe: #172033;
+  --chip-bg: #1e3a5f;
+  --chip-hover: #24486f;
+  --chip-text: #93c5fd;
+  --track: #0f172a;
+  --toolbar-bg: #0f172a;
+  --status-ok-bg: #052e1a;
+  --status-ok-text: #4ade80;
+  --status-err-bg: #3f1414;
+  --status-err-text: #f87171;
+}
+
+* { box-sizing: border-box; }
+html, body { height: 100%; margin: 0; }
+body {
+  font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+  color: var(--text);
+  background: var(--bg);
+  font-size: 14px;
+}
+
+.app { display: flex; height: 100vh; }
+
+/* ---------------- Sidebar ---------------- */
+.sidebar {
+  width: 240px; flex: 0 0 240px; background: var(--sidebar);
+  display: flex; flex-direction: column; color: #cbd5e1;
+}
+.brand { display: flex; align-items: center; gap: 12px; padding: 22px 20px 18px; }
+.brand-mark {
+  width: 34px; height: 34px; border-radius: 8px; background: var(--accent);
+  color: #fff; display: flex; align-items: center; justify-content: center; font-size: 17px;
+}
+.brand-name { color: #fff; font-size: 16px; font-weight: 600; }
+.brand-sub { color: #64748b; font-size: 11px; }
+.nav { display: flex; flex-direction: column; gap: 2px; padding: 8px 10px; flex: 1; }
+.nav-item {
+  display: flex; align-items: center; gap: 10px; height: 44px; padding: 0 12px;
+  border: none; border-radius: 8px; background: transparent; color: #cbd5e1;
+  font-size: 13.5px; cursor: pointer; text-align: left; font-family: inherit;
+}
+.nav-item .ic { width: 20px; text-align: center; opacity: .9; }
+.nav-item:hover { background: var(--sidebar-hover); }
+.nav-item.active { background: var(--accent); color: #fff; font-weight: 600; }
+.sidebar-footer {
+  padding: 14px 20px 18px; border-top: 1px solid var(--sidebar-hover);
+  color: #94a3b8; font-size: 11.5px; line-height: 1.7;
+}
+.theme-toggle {
+  width: 100%; height: 32px; margin-bottom: 12px; border-radius: 7px; cursor: pointer;
+  background: var(--sidebar-hover); color: #e2e8f0; border: 1px solid transparent;
+  font-size: 12.5px; font-family: inherit; display: flex; align-items: center;
+  justify-content: center; gap: 8px;
+}
+.theme-toggle:hover { background: #334155; }
+
+/* ---------------- Content ---------------- */
+.content { flex: 1; overflow: hidden; position: relative; }
+.panel { display: none; flex-direction: column; height: 100%; }
+.panel.active { display: flex; }
+.panel-head {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 18px 28px; background: var(--surface); border-bottom: 1px solid var(--border);
+}
+.panel-head h1 { margin: 0 0 2px; font-size: 22px; font-weight: 600; }
+.sub { color: var(--muted); font-size: 13px; margin: 0; }
+.actions { display: flex; gap: 10px; align-items: center; }
+.scroll { overflow-y: auto; padding: 22px 28px; flex: 1; }
+
+/* ---------------- Cards & fields ---------------- */
+.card {
+  background: var(--surface); border: 1px solid var(--border); border-radius: 10px;
+  padding: 20px; margin-bottom: 18px; max-width: 900px;
+}
+.card.compact { padding: 14px; }
+.card.no-pad { padding: 0; overflow: hidden; }
+.card h2 { margin: 0 0 12px; font-size: 15px; font-weight: 600; }
+label { display: block; font-size: 12.5px; font-weight: 500; margin-bottom: 12px; }
+label:last-child { margin-bottom: 0; }
+input[type=text], input[type=email], input[type=number], input[type=password], select, textarea {
+  width: 100%; height: 34px; padding: 0 10px; margin-top: 4px; font-size: 13px;
+  border: 1px solid var(--border); border-radius: 7px; background: var(--input-bg); color: var(--text);
+  font-family: inherit; outline: none;
+}
+input:focus, select:focus, textarea:focus { border-color: var(--accent); }
+select { appearance: auto; }
+.grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.grid2-1 { display: grid; grid-template-columns: 2fr 1fr; gap: 16px; }
+.field-label { font-size: 12.5px; font-weight: 500; margin: 4px 0 6px; }
+.radio-row { display: flex; gap: 24px; margin-bottom: 12px; }
+.radio, .check { display: inline-flex; align-items: center; gap: 8px; font-weight: 400; margin: 0; cursor: pointer; }
+.radio input, .check input { width: auto; height: auto; margin: 0; }
+.rate-row { display: flex; align-items: center; gap: 14px; }
+.hidden { display: none !important; }
+
+/* ---------------- Buttons ---------------- */
+.btn {
+  height: 34px; min-width: 90px; padding: 0 16px; border-radius: 7px; font-size: 13px;
+  font-weight: 600; cursor: pointer; border: 1px solid transparent; font-family: inherit;
+  display: inline-flex; align-items: center; justify-content: center;
+}
+.btn.primary { background: var(--accent); color: #fff; }
+.btn.primary:hover { background: var(--accent-dark); }
+.btn.primary:disabled { background: var(--accent-disabled); cursor: default; }
+.btn.secondary { background: var(--surface); color: var(--text); border-color: var(--border); }
+.btn.secondary:hover { background: var(--hover); }
+.btn.secondary:disabled { color: var(--muted); cursor: default; }
+
+/* ---------------- Chips ---------------- */
+.chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.chip {
+  height: 26px; padding: 0 11px; border-radius: 13px; border: none;
+  background: var(--chip-bg); color: var(--chip-text); font-size: 12px; cursor: pointer;
+  font-family: 'Cascadia Mono', Consolas, monospace;
+}
+.chip:hover { background: var(--chip-hover); }
+.chip.static { background: var(--bg); color: var(--muted); cursor: default; }
+
+/* ---------------- Tables ---------------- */
+.table-wrap { overflow: auto; max-height: 60vh; }
+table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+th {
+  position: sticky; top: 0; background: var(--table-header); color: var(--muted); font-weight: 600;
+  text-align: left; padding: 8px 12px; border-bottom: 1px solid var(--border); font-size: 12px;
+}
+td { padding: 7px 12px; border-bottom: 1px solid var(--border); }
+tr:nth-child(even) td { background: var(--stripe); }
+.empty { text-align: center; color: var(--muted); padding: 60px 20px; }
+
+/* ---------------- Editor ----------------
+   Chrome (wrapper, toolbar) follows the theme; the editing canvas stays light (it is the email). */
+.editor-wrap {
+  border: 1px solid var(--border); border-radius: 10px; overflow: hidden; background: var(--surface);
+  max-width: 900px; display: flex; flex-direction: column; min-height: 420px;
+}
+.toolbar {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 2px; padding: 8px 10px;
+  background: var(--toolbar-bg); border-bottom: 1px solid var(--border);
+}
+.tbtn {
+  min-width: 30px; height: 30px; padding: 0 8px; border: 1px solid transparent; border-radius: 6px;
+  background: transparent; color: var(--text); cursor: pointer; font-size: 14px;
+}
+.tbtn:hover { background: var(--hover-strong); }
+.tsep { width: 1px; height: 20px; background: var(--border); margin: 0 6px; }
+.swatch { width: 18px; height: 18px; border-radius: 4px; margin: 0 2px; cursor: pointer; border: 1px solid rgba(0,0,0,.12); }
+#linkbar { display: none; align-items: center; width: 100%; padding: 6px 4px 0; }
+#linkbar input { height: 28px; margin: 0; }
+.editor {
+  flex: 1; padding: 18px 22px; outline: none; overflow-y: auto; line-height: 1.55; min-height: 300px;
+  background: #ffffff; color: #0f172a;   /* email canvas — always light */
+}
+.editor:empty:before { content: attr(data-placeholder); color: #94a3b8; }
+.editor p { margin: 0 0 10px; }
+.editor a { color: #2563eb; }
+.editor img { max-width: 100%; }
+.source {
+  flex: 1; border: none; border-radius: 0; margin: 0; padding: 14px; min-height: 300px;
+  font-family: 'Cascadia Mono', Consolas, monospace; font-size: 13px; resize: none; height: auto;
+  background: var(--input-bg); color: var(--text);
+}
+
+/* ---------------- Preview ---------------- */
+.envelope { display: flex; gap: 16px; padding: 4px 0; }
+.envelope .sub { width: 60px; flex: 0 0 60px; }
+.strong { font-weight: 600; }
+.preview-frame-wrap { height: 60vh; }
+#previewFrame { width: 100%; height: 100%; border: none; background: #fff; }
+
+/* ---------------- Send ---------------- */
+.stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; }
+.stat { font-size: 22px; font-weight: 600; margin-top: 4px; }
+.stat.small { font-size: 14px; margin-top: 8px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.progress-head { display: flex; justify-content: space-between; margin-bottom: 10px; }
+.progress { height: 10px; background: var(--track); border-radius: 5px; overflow: hidden; }
+.progress-bar { height: 100%; width: 0; background: var(--accent); transition: width .2s ease; }
+.badge { padding: 2px 8px; border-radius: 10px; font-size: 11px; font-weight: 600; }
+.badge.ok { background: var(--status-ok-bg); color: var(--status-ok-text); }
+.badge.fail { background: var(--status-err-bg); color: var(--status-err-text); }
+
+/* ---------------- Status bar ---------------- */
+.statusbar {
+  max-width: 900px; padding: 12px 14px; border-radius: 8px; font-size: 12.5px;
+  white-space: pre-wrap; margin-bottom: 10px;
+}
+.statusbar.ok { background: var(--status-ok-bg); color: var(--status-ok-text); }
+.statusbar.err { background: var(--status-err-bg); color: var(--status-err-text); }

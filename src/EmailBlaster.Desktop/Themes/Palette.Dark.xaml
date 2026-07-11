@@ -1,0 +1,30 @@
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <!-- Dark palette. Same keys as Palette.Light.xaml — ThemeManager swaps whole dictionaries at
+         runtime and DynamicResource references re-resolve live. Keep both palettes in sync. -->
+    <SolidColorBrush x:Key="AccentBrush" Color="#3B82F6" />
+    <SolidColorBrush x:Key="AccentDarkBrush" Color="#2563EB" />
+    <SolidColorBrush x:Key="SidebarBrush" Color="#020617" />
+    <SolidColorBrush x:Key="SidebarHoverBrush" Color="#1E293B" />
+    <SolidColorBrush x:Key="AppBackgroundBrush" Color="#0B1220" />
+    <SolidColorBrush x:Key="SurfaceBrush" Color="#1E293B" />
+    <SolidColorBrush x:Key="BorderBrush" Color="#334155" />
+    <SolidColorBrush x:Key="TextBrush" Color="#E2E8F0" />
+    <SolidColorBrush x:Key="MutedTextBrush" Color="#94A3B8" />
+    <SolidColorBrush x:Key="SuccessBrush" Color="#4ADE80" />
+    <SolidColorBrush x:Key="DangerBrush" Color="#F87171" />
+
+    <SolidColorBrush x:Key="InputBackgroundBrush" Color="#0F172A" />
+    <SolidColorBrush x:Key="InputDisabledBrush" Color="#172033" />
+    <SolidColorBrush x:Key="HoverBrush" Color="#273449" />
+    <SolidColorBrush x:Key="HoverBorderBrush" Color="#475569" />
+    <SolidColorBrush x:Key="DisabledAccentBrush" Color="#1E3A5F" />
+    <SolidColorBrush x:Key="ChipBrush" Color="#1E3A5F" />
+    <SolidColorBrush x:Key="ChipHoverBrush" Color="#24486F" />
+    <SolidColorBrush x:Key="ChipTextBrush" Color="#93C5FD" />
+    <SolidColorBrush x:Key="AltRowBrush" Color="#172033" />
+    <SolidColorBrush x:Key="ColumnHeaderBrush" Color="#0F172A" />
+    <SolidColorBrush x:Key="TrackBrush" Color="#0F172A" />
+    <SolidColorBrush x:Key="StatusOkBackgroundBrush" Color="#052E1A" />
+    <SolidColorBrush x:Key="StatusErrBackgroundBrush" Color="#3F1414" />
+</ResourceDictionary>

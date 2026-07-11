@@ -1,0 +1,23 @@
+{
+  "SendRatePerSecond": 5,
+  "Provider": "Smtp",
+  "FromName": "Your Company",
+  "FromEmail": "hello@example.com",
+  "ReplyToEmail": null,
+  "Smtp": {
+    "Host": "smtp.example.com",
+    "Port": 587,
+    "Security": "StartTls",
+    "Username": "",
+    "Password": ""
+  },
+  "Aws": {
+    "Region": "us-east-1",
+    "AuthMode": "Profile",
+    "Profile": "",
+    "AccessKeyId": "",
+    "SecretAccessKey": "",
+    "SessionToken": null,
+    "ConfigurationSetName": null
+  }
+}

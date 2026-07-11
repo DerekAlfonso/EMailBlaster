@@ -1,0 +1,18 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <!-- net8.0 matches the Core library and the AWS Lambda managed runtime. -->
+    <TargetFramework>net8.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <LangVersion>latest</LangVersion>
+    <RootNamespace>EmailBlaster.Web</RootNamespace>
+    <AssemblyName>EmailBlaster.Web</AssemblyName>
+    <Description>Web front-end for the Email Blaster engine (SMTP / AWS SES bulk mail).</Description>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\EmailBlaster.Core\EmailBlaster.Core.csproj" />
+  </ItemGroup>
+
+</Project>

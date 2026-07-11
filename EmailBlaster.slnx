@@ -1,0 +1,8 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/EmailBlaster.Cli/EmailBlaster.Cli.csproj" />
+    <Project Path="src/EmailBlaster.Core/EmailBlaster.Core.csproj" />
+    <Project Path="src/EmailBlaster.Desktop/EmailBlaster.Desktop.csproj" />
+    <Project Path="src/EmailBlaster.Web/EmailBlaster.Web.csproj" />
+  </Folder>
+</Solution>

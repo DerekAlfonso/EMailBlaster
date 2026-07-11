@@ -1,0 +1,205 @@
+<UserControl x:Class="EmailBlaster.Desktop.Views.ConfigurationView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             FontFamily="Segoe UI">
+    <DockPanel>
+        <!-- Header -->
+        <Border DockPanel.Dock="Top" Background="{DynamicResource SurfaceBrush}"
+                BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,0,0,1" Padding="28,20">
+            <DockPanel>
+                <StackPanel DockPanel.Dock="Left">
+                    <TextBlock Text="Configuration" Style="{StaticResource H1}" />
+                    <TextBlock Text="Delivery transport, credentials and sender identity."
+                               Style="{StaticResource Subtle}" />
+                </StackPanel>
+                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
+                    <Button x:Name="TestConnectionButton" Content="Test connection"
+                            Style="{StaticResource SecondaryButton}" Margin="0,0,10,0"
+                            Click="TestConnection_Click" />
+                    <Button x:Name="SaveButton" Content="Save settings"
+                            Style="{StaticResource PrimaryButton}" Click="Save_Click" />
+                </StackPanel>
+            </DockPanel>
+        </Border>
+
+        <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="28,22">
+            <StackPanel MaxWidth="900" HorizontalAlignment="Left">
+
+                <!-- Sender identity -->
+                <Border Style="{StaticResource Card}" Margin="0,0,0,18">
+                    <StackPanel>
+                        <TextBlock Text="Sender identity" Style="{StaticResource SectionHeader}" />
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="20" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+                            <StackPanel Grid.Column="0">
+                                <TextBlock Text="From name" Style="{StaticResource FieldLabel}" />
+                                <TextBox x:Name="FromNameBox" />
+                            </StackPanel>
+                            <StackPanel Grid.Column="2">
+                                <TextBlock Text="From email" Style="{StaticResource FieldLabel}" />
+                                <TextBox x:Name="FromEmailBox" />
+                            </StackPanel>
+                        </Grid>
+                        <StackPanel Margin="0,14,0,0">
+                            <TextBlock Text="Reply-To email (optional)" Style="{StaticResource FieldLabel}" />
+                            <TextBox x:Name="ReplyToBox" />
+                        </StackPanel>
+                    </StackPanel>
+                </Border>
+
+                <!-- Delivery -->
+                <Border Style="{StaticResource Card}" Margin="0,0,0,18">
+                    <StackPanel>
+                        <TextBlock Text="Delivery" Style="{StaticResource SectionHeader}" />
+                        <TextBlock Text="Send method" Style="{StaticResource FieldLabel}" />
+                        <StackPanel Orientation="Horizontal" Margin="0,2,0,14">
+                            <RadioButton x:Name="ProviderSmtp" Content="Standard SMTP" GroupName="Provider"
+                                         IsChecked="True" Margin="0,0,24,0" Checked="Provider_Changed"
+                                         VerticalContentAlignment="Center" FontSize="13" />
+                            <RadioButton x:Name="ProviderAws" Content="AWS SES API" GroupName="Provider"
+                                         Checked="Provider_Changed" VerticalContentAlignment="Center" FontSize="13" />
+                        </StackPanel>
+
+                        <TextBlock Text="Send rate" Style="{StaticResource FieldLabel}" />
+                        <StackPanel Orientation="Horizontal">
+                            <TextBox x:Name="RateBox" Width="110" HorizontalContentAlignment="Right" />
+                            <TextBlock Text="messages / second" Style="{StaticResource Subtle}"
+                                       VerticalAlignment="Center" Margin="10,0,20,0" />
+                            <CheckBox x:Name="UnlimitedCheck" Content="Unlimited" VerticalAlignment="Center"
+                                      FontSize="13" Checked="Unlimited_Changed" Unchecked="Unlimited_Changed" />
+                        </StackPanel>
+                        <TextBlock Text="Valid range is 0.5 to unlimited. Lower rates help stay within provider limits."
+                                   Style="{StaticResource Subtle}" Margin="0,8,0,0" />
+                    </StackPanel>
+                </Border>
+
+                <!-- SMTP -->
+                <Border x:Name="SmtpCard" Style="{StaticResource Card}" Margin="0,0,0,18">
+                    <StackPanel>
+                        <TextBlock Text="SMTP settings" Style="{StaticResource SectionHeader}" />
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="2*" />
+                                <ColumnDefinition Width="16" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+                            <StackPanel Grid.Column="0">
+                                <TextBlock Text="Host" Style="{StaticResource FieldLabel}" />
+                                <TextBox x:Name="SmtpHostBox" />
+                            </StackPanel>
+                            <StackPanel Grid.Column="2">
+                                <TextBlock Text="Port" Style="{StaticResource FieldLabel}" />
+                                <TextBox x:Name="SmtpPortBox" />
+                            </StackPanel>
+                        </Grid>
+                        <StackPanel Margin="0,14,0,0">
+                            <TextBlock Text="Security" Style="{StaticResource FieldLabel}" />
+                            <ComboBox x:Name="SmtpSecurityBox" Width="240" HorizontalAlignment="Left" />
+                        </StackPanel>
+                        <Grid Margin="0,14,0,0">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="16" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+                            <StackPanel Grid.Column="0">
+                                <TextBlock Text="Username" Style="{StaticResource FieldLabel}" />
+                                <TextBox x:Name="SmtpUserBox" />
+                            </StackPanel>
+                            <StackPanel Grid.Column="2">
+                                <TextBlock Text="Password" Style="{StaticResource FieldLabel}" />
+                                <PasswordBox x:Name="SmtpPassBox" />
+                            </StackPanel>
+                        </Grid>
+                        <TextBlock Text="Leave username blank for anonymous relays."
+                                   Style="{StaticResource Subtle}" Margin="0,8,0,0" />
+                    </StackPanel>
+                </Border>
+
+                <!-- AWS -->
+                <Border x:Name="AwsCard" Style="{StaticResource Card}" Margin="0,0,0,18" Visibility="Collapsed">
+                    <StackPanel>
+                        <TextBlock Text="AWS SES settings" Style="{StaticResource SectionHeader}" />
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="16" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+                            <StackPanel Grid.Column="0">
+                                <TextBlock Text="Region" Style="{StaticResource FieldLabel}" />
+                                <TextBox x:Name="AwsRegionBox" />
+                            </StackPanel>
+                            <StackPanel Grid.Column="2">
+                                <TextBlock Text="Configuration set (optional)" Style="{StaticResource FieldLabel}" />
+                                <TextBox x:Name="AwsConfigSetBox" />
+                            </StackPanel>
+                        </Grid>
+
+                        <TextBlock Text="Credentials" Style="{StaticResource FieldLabel}" Margin="0,16,0,0" />
+                        <StackPanel Orientation="Horizontal" Margin="0,2,0,12">
+                            <RadioButton x:Name="AwsProfileMode" Content="Named profile" GroupName="AwsAuth"
+                                         IsChecked="True" Margin="0,0,24,0" Checked="AwsAuth_Changed"
+                                         VerticalContentAlignment="Center" FontSize="13" />
+                            <RadioButton x:Name="AwsKeyMode" Content="Access key + secret" GroupName="AwsAuth"
+                                         Checked="AwsAuth_Changed" VerticalContentAlignment="Center" FontSize="13" />
+                        </StackPanel>
+
+                        <StackPanel x:Name="AwsProfilePanel">
+                            <TextBlock Text="Profile name (blank uses the default credential chain)"
+                                       Style="{StaticResource FieldLabel}" />
+                            <TextBox x:Name="AwsProfileBox" Width="300" HorizontalAlignment="Left" />
+                        </StackPanel>
+
+                        <StackPanel x:Name="AwsKeyPanel" Visibility="Collapsed">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="16" />
+                                    <ColumnDefinition Width="*" />
+                                </Grid.ColumnDefinitions>
+                                <StackPanel Grid.Column="0">
+                                    <TextBlock Text="Access key id" Style="{StaticResource FieldLabel}" />
+                                    <TextBox x:Name="AwsAccessKeyBox" />
+                                </StackPanel>
+                                <StackPanel Grid.Column="2">
+                                    <TextBlock Text="Secret access key" Style="{StaticResource FieldLabel}" />
+                                    <PasswordBox x:Name="AwsSecretBox" />
+                                </StackPanel>
+                            </Grid>
+                            <StackPanel Margin="0,14,0,0">
+                                <TextBlock Text="Session token (optional, for temporary credentials)"
+                                           Style="{StaticResource FieldLabel}" />
+                                <TextBox x:Name="AwsSessionTokenBox" />
+                            </StackPanel>
+                        </StackPanel>
+                    </StackPanel>
+                </Border>
+
+                <!-- Test email -->
+                <Border Style="{StaticResource Card}" Margin="0,0,0,18">
+                    <StackPanel>
+                        <TextBlock Text="Send a test email" Style="{StaticResource SectionHeader}" />
+                        <TextBlock Text="Sends the current Compose message to one address using the settings above."
+                                   Style="{StaticResource Subtle}" Margin="0,0,0,12" />
+                        <StackPanel Orientation="Horizontal">
+                            <TextBox x:Name="TestToBox" Width="320" />
+                            <Button x:Name="SendTestButton" Content="Send test" Style="{StaticResource PrimaryButton}"
+                                    Margin="10,0,0,0" Click="SendTest_Click" />
+                        </StackPanel>
+                    </StackPanel>
+                </Border>
+
+                <!-- Status line -->
+                <Border x:Name="StatusBar" Visibility="Collapsed" CornerRadius="8" Padding="14,10"
+                        Margin="0,0,0,10" Background="#F0FDF4">
+                    <TextBlock x:Name="StatusText" TextWrapping="Wrap" FontSize="12.5" />
+                </Border>
+            </StackPanel>
+        </ScrollViewer>
+    </DockPanel>
+</UserControl>

@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Email Blaster</title>
+  <!-- Apply the saved theme (default: dark) before first paint to avoid a flash. -->
+  <script>
+    (function () {
+      var t = localStorage.getItem('emailblaster-theme') || 'dark';
+      document.documentElement.setAttribute('data-theme', t);
+    })();
+  </script>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="app">
+    <!-- Sidebar -->
+    <aside class="sidebar">
+      <div class="brand">
+        <div class="brand-mark">✉</div>
+        <div>
+          <div class="brand-name">Email Blaster</div>
+          <div class="brand-sub">Bulk messaging</div>
+        </div>
+      </div>
+      <nav class="nav">
+        <button class="nav-item active" data-tab="config"><span class="ic">⚙</span> Configuration</button>
+        <button class="nav-item" data-tab="recipients"><span class="ic">👥</span> Recipients</button>
+        <button class="nav-item" data-tab="compose"><span class="ic">✎</span> Compose</button>
+        <button class="nav-item" data-tab="preview"><span class="ic">◉</span> Preview</button>
+        <button class="nav-item" data-tab="send"><span class="ic">➤</span> Send</button>
+      </nav>
+      <div class="sidebar-footer">
+        <button id="themeToggle" class="theme-toggle" title="Toggle light / dark theme">🌙 Dark</button>
+        <div id="statusProvider">Provider: SMTP</div>
+        <div id="statusRecipients">0 recipients loaded</div>
+      </div>
+    </aside>
+
+    <!-- Content -->
+    <main class="content">
+      <!-- ===================== Configuration ===================== -->
+      <section class="panel active" id="tab-config">
+        <header class="panel-head">
+          <div>
+            <h1>Configuration</h1>
+            <p class="sub">Delivery transport, credentials and sender identity.</p>
+          </div>
+          <div class="actions">
+            <button class="btn secondary" id="btnTestConnection">Test connection</button>
+            <button class="btn primary" id="btnSaveConfig">Save settings</button>
+          </div>
+        </header>
+        <div class="scroll">
+          <div class="card">
+            <h2>Sender identity</h2>
+            <div class="grid2">
+              <label>From name<input id="fromName" type="text"></label>
+              <label>From email<input id="fromEmail" type="email"></label>
+            </div>
+            <label>Reply-To email (optional)<input id="replyTo" type="email"></label>
+          </div>
+
+          <div class="card">
+            <h2>Delivery</h2>
+            <div class="field-label">Send method</div>
+            <div class="radio-row">
+              <label class="radio"><input type="radio" name="provider" value="Smtp" checked> Standard SMTP</label>
+              <label class="radio"><input type="radio" name="provider" value="Aws"> AWS SES API</label>
+            </div>
+            <div class="field-label">Send rate</div>
+            <div class="rate-row">
+              <input id="rate" type="number" step="0.5" min="0.5" style="width:120px">
+              <span class="sub">messages / second</span>
+              <label class="check"><input type="checkbox" id="unlimited"> Unlimited</label>
+            </div>
+            <p class="sub">Valid range is 0.5 to unlimited. Lower rates help stay within provider limits.</p>
+          </div>
+
+          <div class="card" id="smtpCard">
+            <h2>SMTP settings</h2>
+            <div class="grid2-1">
+              <label>Host<input id="smtpHost" type="text"></label>
+              <label>Port<input id="smtpPort" type="number"></label>
+            </div>
+            <label>Security
+              <select id="smtpSecurity">
+                <option value="None">None (plain)</option>
+                <option value="StartTls">STARTTLS (port 587)</option>
+                <option value="SslOnConnect">SSL on connect (port 465)</option>
+                <option value="Auto">Auto</option>
+              </select>
+            </label>
+            <div class="grid2">
+              <label>Username<input id="smtpUser" type="text" autocomplete="off"></label>
+              <label>Password<input id="smtpPass" type="password" autocomplete="new-password" placeholder=""></label>
+            </div>
+            <p class="sub">Leave the password blank to keep the stored one. Leave username blank for anonymous relays.</p>
+          </div>
+
+          <div class="card hidden" id="awsCard">
+            <h2>AWS SES settings</h2>
+            <div class="grid2">
+              <label>Region<input id="awsRegion" type="text"></label>
+              <label>Configuration set (optional)<input id="awsConfigSet" type="text"></label>
+            </div>
+            <div class="field-label">Credentials</div>
+            <div class="radio-row">
+              <label class="radio"><input type="radio" name="awsAuth" value="Profile" checked> Named profile</label>
+              <label class="radio"><input type="radio" name="awsAuth" value="AccessKey"> Access key + secret</label>
+            </div>
+            <div id="awsProfilePanel">
+              <label>Profile name (blank uses the default credential chain)<input id="awsProfile" type="text"></label>
+            </div>
+            <div id="awsKeyPanel" class="hidden">
+              <div class="grid2">
+                <label>Access key id<input id="awsAccessKey" type="text" autocomplete="off"></label>
+                <label>Secret access key<input id="awsSecret" type="password" autocomplete="new-password"></label>
+              </div>
+              <label>Session token (optional)<input id="awsSessionToken" type="text" autocomplete="off"></label>
+            </div>
+          </div>
+
+          <div class="card">
+            <h2>Send a test email</h2>
+            <p class="sub">Sends the current Compose message to one address using the settings above.</p>
+            <div class="rate-row">
+              <input id="testTo" type="email" style="width:320px" placeholder="you@example.com">
+              <button class="btn primary" id="btnSendTest">Send test</button>
+            </div>
+          </div>
+
+          <div id="configStatus" class="statusbar hidden"></div>
+        </div>
+      </section>
+
+      <!-- ===================== Recipients ===================== -->
+      <section class="panel" id="tab-recipients">
+        <header class="panel-head">
+          <div>
+            <h1>Recipients</h1>
+            <p class="sub">Import an audience from CSV or Excel. Columns become merge placeholders.</p>
+          </div>
+          <div class="actions">
+            <button class="btn secondary" id="btnClearRecipients">Clear</button>
+            <label class="btn primary" for="fileInput">Import file…</label>
+            <input id="fileInput" type="file" accept=".csv,.xlsx,.xlsm,.txt" hidden>
+          </div>
+        </header>
+        <div class="scroll">
+          <div class="card">
+            <h2 id="recipientSummary">No recipients loaded yet.</h2>
+            <div class="field-label">Available placeholders</div>
+            <div class="chips" id="recipientChips"></div>
+          </div>
+          <div class="card no-pad">
+            <div class="table-wrap"><table id="recipientTable"></table></div>
+            <div id="recipientEmpty" class="empty">Import a CSV or XLSX to get started</div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ===================== Compose ===================== -->
+      <section class="panel" id="tab-compose">
+        <header class="panel-head">
+          <div>
+            <h1>Compose</h1>
+            <p class="sub">Design your HTML message and drop in personalisation placeholders.</p>
+          </div>
+          <div class="actions">
+            <button class="btn secondary" id="btnToggleSource">Edit HTML source</button>
+          </div>
+        </header>
+        <div class="scroll">
+          <label>Subject<input id="subject" type="text"></label>
+          <div class="card compact">
+            <div class="field-label">Insert placeholder (click to add at the cursor)</div>
+            <div class="chips" id="composeChips"></div>
+          </div>
+          <div class="editor-wrap">
+            <div class="toolbar" id="toolbar">
+              <button class="tbtn" data-cmd="bold" title="Bold"><b>B</b></button>
+              <button class="tbtn" data-cmd="italic" title="Italic"><i>I</i></button>
+              <button class="tbtn" data-cmd="underline" title="Underline"><u>U</u></button>
+              <button class="tbtn" data-cmd="strikeThrough" title="Strikethrough"><s>S</s></button>
+              <span class="tsep"></span>
+              <button class="tbtn" data-block="h1" title="Heading 1">H1</button>
+              <button class="tbtn" data-block="h2" title="Heading 2">H2</button>
+              <button class="tbtn" data-block="p" title="Paragraph">¶</button>
+              <span class="tsep"></span>
+              <button class="tbtn" data-cmd="insertUnorderedList" title="Bulleted list">•</button>
+              <button class="tbtn" data-cmd="insertOrderedList" title="Numbered list">1.</button>
+              <span class="tsep"></span>
+              <button class="tbtn" data-cmd="justifyLeft" title="Align left">≡</button>
+              <button class="tbtn" data-cmd="justifyCenter" title="Align center">≣</button>
+              <button class="tbtn" data-cmd="justifyRight" title="Align right">≧</button>
+              <span class="tsep"></span>
+              <button class="tbtn" id="linkBtn" title="Insert link">🔗</button>
+              <button class="tbtn" data-cmd="unlink" title="Remove link">⊘</button>
+              <span class="tsep"></span>
+              <span class="swatch" style="background:#0f172a" data-color="#0f172a"></span>
+              <span class="swatch" style="background:#2563eb" data-color="#2563eb"></span>
+              <span class="swatch" style="background:#16a34a" data-color="#16a34a"></span>
+              <span class="swatch" style="background:#dc2626" data-color="#dc2626"></span>
+              <span class="swatch" style="background:#d97706" data-color="#d97706"></span>
+              <span class="tsep"></span>
+              <button class="tbtn" data-cmd="removeFormat" title="Clear formatting">✕</button>
+              <div id="linkbar"><input id="linkInput" type="text" placeholder="https://example.com  (Enter to apply, Esc to cancel)"></div>
+            </div>
+            <div class="editor" id="editor" contenteditable="true" data-placeholder="Write your message here…"></div>
+            <textarea class="source hidden" id="source" spellcheck="false"></textarea>
+          </div>
+        </div>
+      </section>
+
+      <!-- ===================== Preview ===================== -->
+      <section class="panel" id="tab-preview">
+        <header class="panel-head">
+          <div>
+            <h1>Preview</h1>
+            <p class="sub">See exactly how each merged message will look before you send.</p>
+          </div>
+          <div class="actions">
+            <button class="btn secondary" id="prevRecipient">‹</button>
+            <select id="recipientSelect" style="width:300px"></select>
+            <button class="btn secondary" id="nextRecipient">›</button>
+          </div>
+        </header>
+        <div class="scroll">
+          <div class="card compact">
+            <div class="envelope"><span class="sub">To</span><span id="previewTo"></span></div>
+            <div class="envelope"><span class="sub">Subject</span><span id="previewSubject" class="strong"></span></div>
+          </div>
+          <div class="card no-pad preview-frame-wrap">
+            <iframe id="previewFrame" title="Preview"></iframe>
+          </div>
+        </div>
+      </section>
+
+      <!-- ===================== Send ===================== -->
+      <section class="panel" id="tab-send">
+        <header class="panel-head">
+          <div>
+            <h1>Send</h1>
+            <p class="sub">Review the run, then start sending. Progress updates live.</p>
+          </div>
+          <div class="actions">
+            <button class="btn secondary" id="btnCancelSend" disabled>Cancel</button>
+            <button class="btn primary" id="btnStartSend">Start sending</button>
+          </div>
+        </header>
+        <div class="scroll">
+          <div class="card stats">
+            <div><div class="sub">Recipients</div><div class="stat" id="sendRecipients">0</div></div>
+            <div><div class="sub">Provider</div><div class="stat" id="sendProvider">SMTP</div></div>
+            <div><div class="sub">Send rate</div><div class="stat" id="sendRate">5 / sec</div></div>
+            <div><div class="sub">From</div><div class="stat small" id="sendFrom">—</div></div>
+          </div>
+          <div class="card">
+            <div class="progress-head">
+              <span id="progressLabel" class="strong">Idle</span>
+              <span id="progressCounts" class="sub"></span>
+            </div>
+            <div class="progress"><div class="progress-bar" id="progressBar"></div></div>
+          </div>
+          <div class="card no-pad">
+            <div class="table-wrap"><table id="logTable">
+              <thead><tr><th>Status</th><th>Recipient</th><th>Detail</th></tr></thead>
+              <tbody id="logBody"></tbody>
+            </table></div>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+  <script src="app.js"></script>
+</body>
+</html>
