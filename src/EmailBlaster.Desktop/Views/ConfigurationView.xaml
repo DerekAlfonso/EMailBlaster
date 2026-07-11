@@ -152,7 +152,9 @@
                         <StackPanel x:Name="AwsProfilePanel">
                             <TextBlock Text="Profile name (blank uses the default credential chain)"
                                        Style="{StaticResource FieldLabel}" />
-                            <TextBox x:Name="AwsProfileBox" Width="300" HorizontalAlignment="Left" />
+                            <!-- Editable so profiles that discovery misses can still be typed in. -->
+                            <ComboBox x:Name="AwsProfileBox" Width="300" HorizontalAlignment="Left"
+                                      IsEditable="True" />
                         </StackPanel>
 
                         <StackPanel x:Name="AwsKeyPanel" Visibility="Collapsed">
